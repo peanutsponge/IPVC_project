@@ -1,4 +1,7 @@
 # IPVC_project
+## TODO
+matlab functies omzetten naar python of opencv functies vinden
+
 
 ## Plan
 0. Matlab camera constanten -> python
@@ -19,5 +22,14 @@ mean and standard deviation of the colour channels.
 Eerst maken we 2 meshes per triplet, die we later samenvoegen. 
 #### Mesh maken
 4. Stereo matching -> point cloud
-5. Point cloud -> 3D mesh
+5. Bepaal confidence
+6. Point cloud -> 3D mesh
 5. Meng de 2 meshes
+
+# Taakverdeling
+GIJS stereo rectification + Non-linear lens deformation
+CHRIS mask
+JELISE stereo rectification
+DAMIAN global colour normalization + Stereo matching
+
+DI 17 9:00 meeting
