@@ -1,3 +1,4 @@
+# Adapted from https://temugeb.github.io/opencv/python/2021/02/02/stereo-camera-calibration-and-triangulation.html
 import cv2 as cv
 import numpy as np
 import os
