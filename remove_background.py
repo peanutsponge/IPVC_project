@@ -1,35 +1,6 @@
-import os
 import cv2 as cv
 import numpy as np
-
-def getTriplet(subject, number):
-    '''
-
-    :param subject: 1,2 or 4
-    :param number: the number of the file, [0,4]
-    :return:
-    '''
-    images = []
-    if subject not in [1,2,4]:
-        print("wrong subject number")
-        return [None, None, None]
-    dir_path_subject = 'subject' + str(subject)
-    for perspective in ['Left','Middle','Right']:
-        if subject == 1:
-            dir_path = f"{dir_path_subject}{os.path.sep}subject{subject}{perspective}"
-        else:
-            dir_path = f"{dir_path_subject}{os.path.sep}subject{subject}_{perspective}"
-        # Change number to the image number
-        filenames = os.listdir(dir_path)
-        filenames.sort(key=lambda x: int(x.split('.')[0].split('_')[-1]))
-        file_name = filenames[number]
-        file_path = f"{dir_path}{os.path.sep}{file_name}"
-        if file_name not in os.listdir(dir_path):
-            print("Wrong expression number")
-            return [None, None, None]
-        im = cv.imread(file_path)
-        images.append(im)
-    return images
+from get_images import getTriplet
 
 def region_fill(image, seed_point, color):
     """Fill a region in an image
@@ -60,24 +31,23 @@ def get_foreground_mask(image,smoothing=2):
     mask = cv.bitwise_or(mask,holes)
     return mask
 
-# Load images
-images = [getTriplet(i, 0) for i in [1,2,4]]
-i = 0
-# Plot, select the subject with - and = (so + without shift)
-while True:
-    im = get_foreground_mask(images[i][0])
-    cv.imshow('Left', im)
+# Only execute if running the file directly
+if __name__ == '__main__':
+    # Load images
+    images = [getTriplet(i, 0) for i in [1, 2, 4]]
+    i = 0
+    # Plot, select the subject with - and = (so + without shift)
+    while True:
+        im = get_foreground_mask(images[i][0])
+        cv.imshow('Left', im)
 
-    # Match statement over the key presses
-    key = cv.waitKey(1) & 0xFF
-    if key == ord('q'):
-        break
-    elif key == ord('-'):
-        i = np.max([i - 1,0])
-    elif key == ord('='):
-        i = np.min([i + 1,2])
-    
+        # Match statement over the key presses
+        key = cv.waitKey(1) & 0xFF
+        if key == ord('q'):
+            break
+        elif key == ord('-'):
+            i = np.max([i - 1, 0])
+        elif key == ord('='):
+            i = np.min([i + 1, 2])
 
-cv.destroyAllWindows()
-    
-
+    cv.destroyAllWindows()

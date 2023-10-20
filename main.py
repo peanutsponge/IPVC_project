@@ -1,30 +1,30 @@
 import os
 import cv2 as cv
-def getTriplet(subject, number):
-    '''
+import numpy as np
 
-    :param subject: 1,2 or 4
-    :param number: the number on the end of the image files
-    :return:
-    '''
-    images = []
-    if subject not in [1,2,4]:
-        print("wrong subject number")
-        return [None, None, None]
-    dir_path_subject = 'subject' + str(subject)
-    for perspective in ['Left','Middle','Right']:
-        dir_path = f"{dir_path_subject}{os.path.sep}subject{subject}{perspective}"
-        file_name = f"subject{subject}_{perspective}_{number}.jpg"
-        file_path = f"{dir_path}{os.path.sep}{file_name}"
-        if file_name not in os.listdir(dir_path):
-            print("Wrong expression number")
-            return [None, None, None]
-        im = cv.imread(file_path)
-        images.append(im)
-    return images
+from remove_background import get_foreground_mask
+from get_images import getTriplet
+from mesh import generate_mesh
 
+# camera_parameters = get_camera_parameters()
 
+mask = [None, None, None]
+triplet = getTriplet(1, 0)  # In final version we'll loop over these
+for i, im in enumerate(triplet):
+    # Make Foreground mask
+    mask[i] = get_foreground_mask(im)
+    # compensated for Non-linear lens deformation
+    im = im
+    # stereo rectification to facilitate the dense stereo matching
+    im = im
+    # global colour normalization to make sure that the so-called ‘Constant Brightness Assumption’ holds true.
+    # A normalization could be applied with respect to mean and standard deviation of the colour channels.
+    im = im
+    # Save the image to the triplet
+    triplet[i] = im
 
-# Load images from the "Calibration 1/calibrationLeft" folder
-# and append them to the "left_images" list
-ima = getTriplet(1, 1)
+# Generate two meshes
+mesh_LM = generate_mesh(im[0], im[1], mask[0], mask[1])
+mesh_MR = generate_mesh(im[1], im[2], mask[1], mask[2])
+
+# Merge the meshes using the ICP algorithm (iterated closest points)
