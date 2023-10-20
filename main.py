@@ -1,3 +1,6 @@
+"""
+Main file that runs the entire pipeline
+"""
 import os
 import cv2 as cv
 import numpy as np
@@ -13,9 +16,9 @@ triplet = getTriplet(1, 0)  # In final version we'll loop over these
 for i, im in enumerate(triplet):
     # Make Foreground mask
     mask[i] = get_foreground_mask(im)
-    # compensated for Non-linear lens deformation
+    # Compensation for Non-linear lens deformation
     im = im
-    # stereo rectification to facilitate the dense stereo matching
+    # Stereo rectification to facilitate the dense stereo matching
     im = im
     # global colour normalization to make sure that the so-called ‘Constant Brightness Assumption’ holds true.
     # A normalization could be applied with respect to mean and standard deviation of the colour channels.

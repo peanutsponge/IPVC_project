@@ -1,3 +1,6 @@
+"""
+This file contains the functions to generate a mesh from two images.
+"""
 def generate_mesh(im1, im2, mask1, mask2):
     """
     Use the two images to generate a mesh.
