@@ -4,7 +4,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
-# parameters
+# Global parameters
 ch_rows = 6  # rows of checkerboard
 ch_cols = 9  # columns of checkerboard
 square_size = 0.010 # 10mm x 10mm
@@ -129,7 +129,7 @@ def stereo_rectify(mtx1, dist1, mtx2, dist2, R, T, width, height):
     # Compute the rectification transformations
     R1, R2, P1, P2, Q, validPixROI1, validPixROI2 = cv.stereoRectify(
         mtx1, dist1, mtx2, dist2, (width, height), R, T)
-    # Generate rectification maps for each camera
+    # Generate rectification maps for each camera, performs undistortion and rectification
     map1x, map1y = cv.initUndistortRectifyMap(mtx1, dist1, R1, P1, (width, height), cv.CV_32FC1)
     map2x, map2y = cv.initUndistortRectifyMap(mtx2, dist2, R2, P2, (width, height), cv.CV_32FC1)
 
