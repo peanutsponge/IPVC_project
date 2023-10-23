@@ -1,2 +1,3 @@
-# Ignore the .idea folder
+# Ignore the IDE settings and cache
 .idea/
+__pycache__/
