@@ -25,8 +25,9 @@ triplet = getTriplet(1, 0)  # In final version we'll loop over these
 for i, im in enumerate(triplet):
     # Make Foreground mask
     mask[i] = get_foreground_mask(im)
-    # Compensation for Non-linear lens deformation
-    im = apply_lens_correction(im, camera_id[i], calibration_data)
+
+    # Apply lens correction, not necessary here! is performed in rectify_images
+    # im = apply_lens_correction(im, camera_id[i], calibration_data)
     #show the image
 
     # global colour normalization to make sure that the so-called ‘Constant Brightness Assumption’ holds true.
@@ -36,7 +37,7 @@ for i, im in enumerate(triplet):
     triplet[i] = im
 
 #TODO: Where to put this? In the loop or after the loop? Doesn't really work with the loop
-# Stereo rectification to facilitate the dense stereo matching
+# Stereo rectification to facilitate the dense stereo matching, also performs non-linear distortion correction!
 rect_images_LM = (triplet[0], triplet[1], calibration_data['map1x_lm'], calibration_data['map1y_lm'], calibration_data['map2x_lm'], calibration_data['map2y_lm'])
 rect_images_MR = (triplet[1], triplet[2], calibration_data['map1x_mr'], calibration_data['map1y_mr'], calibration_data['map2x_mr'], calibration_data['map2y_mr'])
 
