@@ -6,6 +6,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+def downsample_image(image, reduce_factor):
+    for i in range(0, reduce_factor):
+        # Check if image is color or grayscale
+        if len(image.shape) > 2:
+            row, col = image.shape[:2]
+        else:
+            row, col = image.shape
+
+        # Scale the image down by half each time
+        image = cv.pyrDown(image, dstsize=(col // 2, row // 2))
+    return image
+
 def plot_point_cloud(point_cloud):
     # Determine the number of points to sample (10% of the total)
     sample_size = int(0.01 * len(point_cloud))
@@ -30,13 +42,23 @@ def plot_point_cloud(point_cloud):
     plt.show()
 
 def compute_disparity_map(rectified_images):
-    #rectified_images = [cv.normalize(image, None, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U) for image in rectified_images]
+    #rectified_images needs to be in uint8 format
+
+    block_size = 5
+    min_disp = -1
+    max_disp = 31
+    num_disp = max_disp - min_disp  # Needs to be divisible by 16
+
     stereo = cv.StereoSGBM_create(
-        minDisparity=0,
-        numDisparities=16,  # Adjust as needed for your specific setup
-        blockSize=5,  # Adjust as needed for your specific setup
-        P1=8 * 3 * 5 ** 2,
-        P2=32 * 3 * 5 ** 2
+        # Adjust these parameters by trial and error.
+        numDisparities= num_disp,
+        blockSize= block_size,
+        uniquenessRatio=5,
+        speckleWindowSize=5,
+        speckleRange=2,
+        disp12MaxDiff=2,
+        P1=8 * 3 * block_size ** 2, #8*img_channels*block_size**2
+        P2=32 * 3 * block_size ** 2 #32*img_channels*block_size**2
     )
 
     disparity = stereo.compute(rectified_images[0], rectified_images[1])
@@ -84,15 +106,33 @@ def generate_mesh(rectified_images, foreground_masks, calibration_data, camera_n
     #TODO: add foreground mask support
     #TODO: fix point cloud, how to choose points? SIFT?
 
+    #downsample the images
+    #rectified_images = [downsample_image(image, 3) for image in rectified_images]
+    gray_images = [cv.cvtColor(image, cv.COLOR_BGR2GRAY) for image in rectified_images]
 
     # Compute the disparity map
-    disparity_map = compute_disparity_map(rectified_images)
-    disparity_map = cv.normalize(disparity_map, disparity_map, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
-    cv.imshow("Disparity", disparity_map)
+    disparity_map = compute_disparity_map(rectified_images) #or use gray_images?
+    #disparity_map = cv.normalize(disparity_map, disparity_map, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
+    disparity_map = np.float32(np.divide(disparity_map, 16.0))
+    cv.imshow("Disparity", cv.normalize(disparity_map, disparity_map, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U))
     cv.waitKey(0)
 
-    point_cloud = cv.reprojectImageTo3D(disparity_map, calibration_data['Q_lm'])
+    # Use the disparity map to find the point cloud
+    point_cloud = cv.reprojectImageTo3D(disparity_map, calibration_data['Q_lm'], handleMissingValues=False) #TODO use the right Q
+    colors = cv.cvtColor(rectified_images[0], cv.COLOR_BGR2RGB) #or use image 1?
+    mask_map = disparity_map > disparity_map.min()
+
     print(point_cloud.shape)
+    print(mask_map.shape)
+
+    #Mask the point cloud
+    point_cloud = point_cloud[mask_map]
+    print(point_cloud.shape)
+    colors = colors[mask_map]
+
+    create_point_cloud_file(point_cloud,colors,"point_cloud.ply")
+
+
     # Use the disparity map to find the depth map
     #depth_map = disparity_to_depth(disparity_map, 1, 1)
     #mask the depth map
@@ -100,10 +140,28 @@ def generate_mesh(rectified_images, foreground_masks, calibration_data, camera_n
 
     # Use the depth map to find the 3D points, Skip the points that are not in the mask
     #point_cloud = generate_point_cloud(depth_map, calibration_data, camera_name)
-    plot_point_cloud(point_cloud)
+
     # Use the 3D points to generate a mesh
-    mesh = None
 
     # Return the mesh
     #for now just return the point cloud
     return point_cloud
+
+def create_point_cloud_file(vertices,colors,filename):
+    colors = colors.reshape(-1,3)
+    vertices = np.hstack([vertices.reshape(-1,3),colors])
+
+    ply_header = '''ply
+        format ascii 1.0
+        element vertex %(vert_num)d
+        property float x
+        property float y
+        property float z
+        property uchar red
+        property uchar green
+        property uchar blue
+        end_header
+        '''
+    with open(filename, 'w') as f:
+        f.write(ply_header %dict(vert_num=len(vertices)))
+        np.savetxt(f,vertices,'%f %f %f %d %d %d')
