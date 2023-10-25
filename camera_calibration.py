@@ -131,9 +131,9 @@ def stereo_rectify(mtx1, dist1, mtx2, dist2, R, T, width, height):
 # Rectify a pair of images, see cc_testing.ipynb for an example
 def rectify_images(image1, image2, map1x, map1y, map2x, map2y):
     # Apply rectification maps to the images
-    rectified_image1 = cv.remap(image1, map1x, map1y, interpolation=cv.INTER_LINEAR)
+    rectified_image1 = cv.remap(image1, map1x, map1y, interpolation=cv.INTER_LINEAR, borderMode=cv.BORDER_CONSTANT)
     rectified_image2 = cv.remap(image2, map2x, map2y, interpolation=cv.INTER_LINEAR)
-    return rectified_image1, rectified_image2
+    return [rectified_image1, rectified_image2]
 
 #This function doesn't have to be used
 def rectify_image(image, map1x, map1y):
