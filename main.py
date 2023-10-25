@@ -62,8 +62,8 @@ cv.imshow("Right", mask_MR[1])
 cv.waitKey(0)
 
 # Generate two meshes
-mesh_LM = generate_mesh(images_LM, mask_LM)
-mesh_MR = generate_mesh(images_MR, mask_MR)
+mesh_LM = generate_mesh(images_LM, mask_LM, calibration_data, "left")
+mesh_MR = generate_mesh(images_MR, mask_MR, calibration_data, "middle")
 
 # Merge the meshes using the ICP algorithm (iterated closest points)
 

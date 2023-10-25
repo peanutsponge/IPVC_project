@@ -2,7 +2,7 @@
 This file contains the function that performs global color normalization on an image.
 """
 import numpy as np
-
+import cv2 as cv
 
 def normalize_global_color(image):
     """
@@ -34,6 +34,9 @@ def normalize_global_color_type(image,T=np.float32):
 
     # Normalize the image.
     normalized_image = ((image-mean) / std).astype(T)
+
+    #convert to 0-255, CV_8U
+    normalized_image = cv.normalize(normalized_image, normalized_image, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
     return normalized_image
 
 def normalize_global_color_triplet(triplet,T=np.float32):
