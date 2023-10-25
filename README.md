@@ -32,4 +32,13 @@ CHRIS mask
 JELISE stereo rectification
 DAMIAN global colour normalization + Stereo matching
 
-DI 17 9:00 meeting
+# Report
+Q: How to do XXX
+
+Method: In order to do XXX, I propose method XXX and validate the method by experiment XXX.
+
+Results: the results of experiment XXX show XXX. It reflects our proposed method is working or not.
+
+Discussion: summary of the finding, how this proposed method is different to other state of the art work?  What is the limitation? What can we get out of this result and dig deeper on the scientific discovery.
+
+Conclusion: the proposed method is capable or not capable to do XXX. If so, what could be the impact and potential, if not working, why it is so? How to let others avoid this…
