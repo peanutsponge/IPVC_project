@@ -1,3 +1,4 @@
 # Ignore the IDE settings and cache
 .idea/
 __pycache__/
+/point_cloud.ply

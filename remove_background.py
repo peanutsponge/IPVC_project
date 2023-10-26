@@ -4,7 +4,6 @@ This file contains the code to create a foreground mask for the images.
 import cv2 as cv
 import numpy as np
 from get_images import getTriplet
-from normalise_color import normalize_global_color_triplet
 
 T = np.uint8  # The type of the images
 T_max = np.iinfo(T(10)).max  # The maximum value of the images   
