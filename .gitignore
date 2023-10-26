@@ -1,3 +1,8 @@
 # Ignore the IDE settings and cache
 .idea/
 __pycache__/
+
+# Ignore the output files
+point_cloud_lm.ply
+point_cloud_mr.ply
+pointCloud.ply

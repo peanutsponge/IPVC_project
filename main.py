@@ -7,11 +7,13 @@ import numpy as np
 
 from remove_background import get_foreground_mask, get_foreground_mask_HSV
 from get_images import getTriplet
-from mesh import generate_mesh
+from mesh import generate_mesh, create_point_cloud_file
 from normalise_color import normalize_global_color, normalize_global_color_type
 from camera_calibration import get_calibration_data_from_file, calibrate_3_cameras_to_file, apply_lens_correction, \
     rectify_images
 
+#* Settings
+displayImagesWhileRunning = False
 
 def preprocess(images, suffix=None):
     mask = [None, None]
@@ -47,26 +49,36 @@ triplet = getTriplet(1, 0)  # In final version we'll loop over these
 images_LM, mask_LM = preprocess([triplet[0], triplet[1]], "_lm")
 images_MR, mask_MR = preprocess([triplet[1], triplet[2]], "_mr")
 
-# Display the images
-cv.imshow("Left", images_LM[0])
-cv.imshow("Middle", images_LM[1])
-cv.imshow("Middle 2", images_MR[0])
-cv.imshow("Right", images_MR[1])
-cv.waitKey(0)
+# Remove background by applying mask_LM
+images_LM[0][mask_LM[0] != 255] = 0
+images_LM[1][mask_LM[1] != 255] = 0
+images_MR[0][mask_MR[0] != 255] = 0
+images_MR[1][mask_MR[1] != 255] = 0
 
-# Display the mask
-cv.imshow("Left", mask_LM[0])
-cv.imshow("Middle", mask_LM[1])
-cv.imshow("Middle 2", mask_MR[0])
-cv.imshow("Right", mask_MR[1])
-cv.waitKey(0)
+# Display the images
+if displayImagesWhileRunning:
+    cv.imshow("Left", images_LM[0])
+    cv.imshow("Middle", images_LM[1])
+    cv.imshow("Middle 2", images_MR[0])
+    cv.imshow("Right", images_MR[1])
+    cv.waitKey(0)
+
+    # Display the mask
+    cv.imshow("Left", mask_LM[0])
+    cv.imshow("Middle", mask_LM[1])
+    cv.imshow("Middle 2", mask_MR[0])
+    cv.imshow("Right", mask_MR[1])
+    cv.waitKey(0)
 
 # Generate two meshes
-mesh_LM = generate_mesh(images_LM, mask_LM, calibration_data, "left")
-mesh_MR = generate_mesh(images_MR, mask_MR, calibration_data, "middle")
+mesh_LM = generate_mesh(images_LM, calibration_data, "lm")
+mesh_MR = generate_mesh(images_MR, calibration_data, "mr")
 
+pointCloud = np.row_stack([mesh_LM,mesh_MR])
+print("pointCloud.shape: ",pointCloud.shape)
+colors = np.ones((pointCloud.shape[0],3),dtype=np.uint8)*255
+create_point_cloud_file(pointCloud,colors, "pointCloud.ply")
 # Merge the meshes using the ICP algorithm (iterated closest points)
-
 
 # Save the mesh to a file
 
