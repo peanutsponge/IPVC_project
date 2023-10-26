@@ -3,6 +3,7 @@ This file contains the functions to generate a mesh from two images.
 """
 import cv2 as cv
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def compute_disparity_map(rectified_images):
@@ -11,24 +12,10 @@ def compute_disparity_map(rectified_images):
     :param rectified_images: The two rectified images to compute the disparity map from needs to be in uint8 format
     :return: The disparity map
     """
-    block_size = 5
-    min_disp = -1
-    max_disp = 31
-    num_disp = max_disp - min_disp  # Needs to be divisible by 16
 
-    stereo = cv.StereoSGBM_create(
-        # Adjust these parameters by trial and error.
-        numDisparities=num_disp,
-        blockSize=block_size,
-        uniquenessRatio=5,
-        speckleWindowSize=5,
-        speckleRange=2,
-        disp12MaxDiff=2,
-        P1=8 * 3 * block_size ** 2,  # 8*img_channels*block_size**2
-        P2=32 * 3 * block_size ** 2  # 32*img_channels*block_size**2
-    )
-
-    disparity = stereo.compute(rectified_images[0], rectified_images[1])
+    stereo = cv.StereoBM_create(numDisparities=16, blockSize=11)
+    gray_images = [cv.cvtColor(image, cv.COLOR_BGR2GRAY) for image in rectified_images]
+    disparity = stereo.compute(gray_images[0], gray_images[1])
     return disparity
 
 
@@ -45,7 +32,7 @@ def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
     # TODO: add foreground mask support
     # TODO: fix point cloud, how to choose points? SIFT?
 
-    gray_images = [cv.cvtColor(image, cv.COLOR_BGR2GRAY) for image in rectified_images]
+
 
     # Compute the disparity map
     disparity_map = compute_disparity_map(rectified_images)  # or use gray_images?
@@ -64,15 +51,28 @@ def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
 
     # Use the disparity map to find the point cloud
     point_cloud = cv.reprojectImageTo3D(disparity_map, calibration_data[f'Q{suffix}'], handleMissingValues=True)
-    colors = cv.cvtColor(rectified_images[0], cv.COLOR_BGR2RGB)  # We don't need colors right?
-    mask_map = disparity_map > disparity_map.min()  # possibly the same as disparity_map_invalid
-
-    # Mask the point cloud Why? Don't we want the point cloud as a list of points?
-    point_cloud = point_cloud[mask_map]
-    colors = colors[mask_map]
-
-    # Create a point cloud file
-    create_point_cloud_file(point_cloud, colors, "point_cloud.ply")
+    points = []
+    for i in range(1024):
+        for j in range(1024):
+            point = point_cloud[i][j]
+            validx = -999 < point[0] < 999
+            validy = -999 < point[1] < 999
+            validz = -1999 < point[2] < 1999
+            if validx and validy and validz:
+                points.append(point)
+    points = np.array(points)
+    # plot the point cloud 2D
+    plt.figure()
+    plt.scatter(points[:, 0], points[:, 1], s=0.1)
+    plt.show()
+    # plot the point cloud
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(points[:, 0], points[:, 2], points[:, 1], s=0.1)
+    ax.set_xlabel('X Label')
+    ax.set_ylabel('Y Label')
+    ax.set_zlabel('Z Label')
+    plt.show()
     return point_cloud
 
 

@@ -2,7 +2,7 @@
 Main file that runs the entire pipeline
 """
 import numpy as np
-
+import cv2 as cv
 from remove_background import get_foreground_mask_HSV
 from get_images import getTriplet
 from mesh import generate_mesh
@@ -45,12 +45,12 @@ triplet = getTriplet(1, 0)  # In final version we'll loop over these
 images_LM, mask_LM = preprocess([triplet[0], triplet[1]], "_lm")
 images_MR, mask_MR = preprocess([triplet[1], triplet[2]], "_mr")
 
-# # Display the images
-# cv.imshow("Left", images_LM[0])
-# cv.imshow("Middle", images_LM[1])
-# cv.imshow("Middle 2", images_MR[0])
-# cv.imshow("Right", images_MR[1])
-# cv.waitKey(0)
+# Display the images
+cv.imshow("Left", images_LM[0])
+cv.imshow("Middle", images_LM[1])
+cv.imshow("Middle 2", images_MR[0])
+cv.imshow("Right", images_MR[1])
+cv.waitKey(0)
 #
 # # Display the mask
 # cv.imshow("Left", mask_LM[0])
