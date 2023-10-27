@@ -29,6 +29,8 @@ def compute_disparity_map(rectified_images):
                                   )
     disparity = stereo.compute(rectified_images[0], rectified_images[1])
     return disparity
+
+
 def compute_disparity_map_graph_cut(rectified_images):
     window_size = 30
     block_size = 5
@@ -50,12 +52,15 @@ def compute_disparity_map_graph_cut(rectified_images):
     )
     disparity = stereo.compute(rectified_images[0], rectified_images[1])
     return disparity
+
+
 def compute_disparity_map_block_matching(rectified_images):
     block_size = 5  # Adjust the block size based on your preference
     num_disparities = 16  # Adjust based on the range of disparities in your images
     stereo = cv.StereoBM_create(numDisparities=num_disparities, blockSize=block_size)
     disparity = stereo.compute(rectified_images[0], rectified_images[1])
     return disparity
+
 
 def compute_disparity_map_interactively(images, mask):
     """
@@ -66,19 +71,17 @@ def compute_disparity_map_interactively(images, mask):
     Returns:
 
     """
-    #Default values
-    use_mask = False
+    # Default values
+    use_mask = True
     colorize = True
-    display_range_lower_bound = 0 # The lower bound of the range to display the disparity map
-    display_range_upper_bound = 255 # The upper bound of the range to display the disparity map
-    block_size = 5
-    min_disp = -1
-    max_disp = 47
-    num_disp = max_disp - min_disp  # Needs to be divisible by 16
-    uniquenessRatio = 0
-    speckleWindowSize = 0
-    speckleRange = 0
-    disp12MaxDiff = -1
+    display_range_lower_bound = 1  # The lower bound of the range to display the disparity map
+    display_range_upper_bound = 255  # The upper bound of the range to display the disparity map
+    block_size = 1
+    num_disp = 32  # Needs to be divisible by 16
+    uniquenessRatio = 2
+    speckleWindowSize = 20
+    speckleRange = 2
+    disp12MaxDiff = 100
     P1 = 8 * 3 * block_size ** 2  # 8*img_channels*block_size**2
     P2 = 32 * 3 * block_size ** 2  # 32*img_channels*block_size**2
     mode = cv.STEREO_SGBM_MODE_HH  # Use Graph Cut mode
@@ -96,7 +99,7 @@ def compute_disparity_map_interactively(images, mask):
     cv.createTrackbar("mode", "Disparity", mode, 1, lambda x: x)
     cv.createTrackbar("display_range_lower_bound", "Disparity", display_range_lower_bound, 1000, lambda x: x)
     cv.createTrackbar("display_range_upper_bound", "Disparity", display_range_upper_bound, 1000, lambda x: x)
-    cv.createTrackbar("colorize", "Disparity", colorize,1, lambda x: x)
+    cv.createTrackbar("colorize", "Disparity", colorize, 1, lambda x: x)
     cv.createTrackbar("use_mask", "Disparity", use_mask, 1, lambda x: x)
 
     # Wait until the user presses 'q' on the keyboard
@@ -158,19 +161,18 @@ def compute_disparity_map_interactively(images, mask):
             disparity_map[mask_lower == 255] = [0, 0, 0]
             disparity_map[mask_upper == 255] = [255, 255, 255]
 
-
-
-
         # Show the disparity map in the interactive window let the curser display the disparity value
         cv.imshow("Disparity", disparity_map)
         # Print the disparity value at the current mouse position in the interactive window
         cv.setMouseCallback("Disparity", lambda event, x, y, flags, param: print(disparity[y, x]))
         # wait for 100ms
         cv.waitKey(100)
+        break
 
     # Close the window
     cv.destroyWindow("Disparity")
     return disparity
+
 
 def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
     """
@@ -183,8 +185,6 @@ def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
     :return: The mesh
     """
 
-
-
     # Compute the disparity map
     disparity_map = compute_disparity_map_interactively(rectified_images, mask=foreground_masks)
 
@@ -192,26 +192,52 @@ def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
 
     points = []
 
-    # for i in range(1024):
-    #     for j in range(1024):
-    #         if disparity_map[i][j] != 0:
-    #             point = [j, i, 1/disparity_map[i][j]]
-    #             points.append(point)
-    # points = np.array(points)
-    # # plot the point cloud 2D
-    # plt.figure()
-    # plt.scatter(points[:, 0], points[:, 1], s=0.1)
-    # plt.show()
-    # # plot the point cloud
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection='3d')
-    # ax.scatter(points[:, 0], points[:, 2], points[:, 1], s=0.1)
-    # ax.set_xlabel('X Label')
-    # ax.set_ylabel('Y Label')
-    # ax.set_zlabel('Z Label')
-    # plt.show()
-    return None
+    for i in range(1024):
+        for j in range(1024):
+            if disparity_map[i][j] > 0 and disparity_map[i][j] < 496:
+                point = [j, i, 1/disparity_map[i][j]]
+                points.append(point)
+    points = np.array(points)
+    # Filter outliers
+    # Calculate the mean and standard deviation of the points
+    mean = np.mean(points, axis=0)
+    std = np.std(points, axis=0)
+    # Filter the points that are outside of 1.5 standard deviations
+    points = points[np.all(np.sqrt((points - mean) ** 2)/ std < 1.5, axis=1)]
+    # Convert the points to a depth map with the same size as the images and inf as the default value
+    depth_map = np.full([rectified_images[0].shape[0],rectified_images[0].shape[1]], np.inf)
+    # Convert the points to pixel coordinates
+    points[:, 2] *= 1000
+    points = np.round(points).astype(int)
+    # Set the depth map values to the z values of the points
+    depth_map[points[:, 1], points[:, 0]] = points[:, 2]
+    # Display the depth map with inf as purple
+    # calculate max and min values excluding inf
+    max_val = np.max(depth_map[depth_map != np.inf])
+    min_val = np.min(depth_map[depth_map != np.inf])
+    fig, ax = plt.subplots()
+    ax.set_facecolor("red")
+    ax.imshow(depth_map, cmap='gray', vmin=min_val, vmax=max_val)
+    fig.show()
 
+
+    plot_point_cloud(points)
+    return None
+def plot_point_cloud(points):
+    # plot the point cloud 2D with purple background
+    plt.figure()
+    plt.fill([0, 0, 1024, 1024], [0, -1024, -1024, 0], 'purple')
+    plt.scatter(points[:, 0], -points[:, 1], s=0.001, cmap='gray', c=points[:, 2])
+    plt.colorbar()
+    plt.show()
+    # plot the point cloud
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(points[:, 0], points[:, 2], -points[:, 1], s=0.1, alpha=0.1)
+    ax.set_xlabel('X Label')
+    ax.set_ylabel('Y Label')
+    ax.set_zlabel('Z Label')
+    plt.show()
 
 def create_point_cloud_file(vertices, colors, filename):
     """
