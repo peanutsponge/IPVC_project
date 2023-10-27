@@ -67,7 +67,7 @@ def compute_disparity_map_interactively(rectified_images):
 
     """
     #Default values
-    normalise = True
+    colorize = True
     display_range_lower_bound = 0 # The lower bound of the range to display the disparity map
     display_range_upper_bound = 255 # The upper bound of the range to display the disparity map
     block_size = 5
@@ -96,7 +96,7 @@ def compute_disparity_map_interactively(rectified_images):
     cv.createTrackbar("mode", "Disparity", mode, 1, lambda x: x)
     cv.createTrackbar("display_range_lower_bound", "Disparity", display_range_lower_bound, 1000, lambda x: x)
     cv.createTrackbar("display_range_upper_bound", "Disparity", display_range_upper_bound, 1000, lambda x: x)
-    cv.createTrackbar("normalise", "Disparity", normalise, 1, lambda x: x)
+    cv.createTrackbar("colorize", "Disparity", colorize,1, lambda x: x)
     # Wait until the user presses 'q' on the keyboard
     while cv.waitKey(1) != ord('q'):
         # Get the current trackbar positions
@@ -111,7 +111,7 @@ def compute_disparity_map_interactively(rectified_images):
         mode = cv.getTrackbarPos("mode", "Disparity")
         display_range_lower_bound = cv.getTrackbarPos("display_range_lower_bound", "Disparity")
         display_range_upper_bound = cv.getTrackbarPos("display_range_upper_bound", "Disparity")
-        normalise = cv.getTrackbarPos("normalise", "Disparity")
+        colorize = cv.getTrackbarPos("colorize", "Disparity")
 
         # Create the stereo matcher object with the parameters we set above
         stereo = cv.StereoSGBM_create(
@@ -129,64 +129,39 @@ def compute_disparity_map_interactively(rectified_images):
         disparity = stereo.compute(rectified_images[0], rectified_images[1])
         # Display the disparity map
         # Convert to float32 Why?
-        disparity = np.float32(np.divide(disparity, 16.0))  # Why
-        if normalise:
-            disparity_map = cv.normalize(disparity, disparity, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
-        else:
-            disparity_map = disparity
-        #disparity_map = cv.applyColorMap(disparity_map, cv.COLORMAP_JET)
-        # make everything below the lower bound black
-        disparity_map[disparity_map < display_range_lower_bound] = display_range_lower_bound
-        # make everything above the upper bound black
-        disparity_map[disparity_map > display_range_upper_bound] = display_range_upper_bound
-        # Scale the disparity map to 0-255
-        disparity_map = np.uint8(np.divide(disparity_map, (display_range_upper_bound - display_range_lower_bound) / 255))
+        disparity_map = np.float32(np.divide(disparity, 16.0))  # Why
+
+        if colorize:
+            # Color mark everything that is not in the range we want to display
+            mask_lower = np.zeros(disparity_map.shape, dtype=np.uint8)
+            mask_lower[disparity_map < display_range_lower_bound] = 255
+            mask_upper = np.zeros(disparity_map.shape, dtype=np.uint8)
+            mask_upper[disparity_map > display_range_upper_bound] = 255
+            # Color mark everything that is not in the range we want to display
+            disparity_map[disparity_map < display_range_lower_bound] = display_range_lower_bound
+            disparity_map[disparity_map > display_range_upper_bound] = display_range_upper_bound
+        # Normalize the disparity_map map to the range we want to display
+        disparity_map = cv.normalize(disparity_map, disparity_map, alpha=0, beta=255, norm_type=cv.NORM_MINMAX,
+                                     dtype=cv.CV_8U)
+        if colorize:
+            # Apply the masks as a color overlay
+            disparity_map = cv.applyColorMap(disparity_map, cv.COLORMAP_JET)
+            disparity_map[mask_lower == 255] = [0, 0, 0]
+            disparity_map[mask_upper == 255] = [255, 255, 255]
 
 
 
 
-        # Show the disparity map in the interactive window
+        # Show the disparity map in the interactive window let the curser display the disparity value
         cv.imshow("Disparity", disparity_map)
+        # Print the disparity value at the current mouse position in the interactive window
+        cv.setMouseCallback("Disparity", lambda event, x, y, flags, param: print(disparity[y, x]))
         # wait for 100ms
         cv.waitKey(100)
 
     # Close the window
     cv.destroyWindow("Disparity")
     return disparity
-
-
-def compute_and_display_disparity_map_interactively(rectified_images, parameters):
-    """
-
-    Args:
-        rectified_images:
-        parameters:
-
-    Returns:
-
-    """
-    num_disp, block_size, uniquenessRatio, speckleWindowSize, speckleRange, disp12MaxDiff, P1, P2, mode = parameters
-    stereo = cv.StereoSGBM_create(
-        # Adjust these parameters by trial and error.
-        numDisparities=num_disp,
-        blockSize=block_size,
-        uniquenessRatio=uniquenessRatio,
-        speckleWindowSize=speckleWindowSize,
-        speckleRange=speckleRange,
-        disp12MaxDiff=disp12MaxDiff,
-        P1=P1,  # 8*img_channels*block_size**2
-        P2=P2,  # 32*img_channels*block_size**2
-        mode=mode  # Use Graph Cut mode
-    )
-    disparity = stereo.compute(rectified_images[0], rectified_images[1])
-    # Display the disparity map
-    # Convert to float32 Why?
-    disparity = np.float32(np.divide(disparity, 16.0))  # Why 16?
-    disparity_map = cv.normalize(disparity, disparity, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
-    # Show the disparity map in the interactive window
-    cv.imshow("Disparity", disparity_map)
-    return disparity
-
 
 def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
     """
