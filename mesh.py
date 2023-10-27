@@ -4,7 +4,7 @@ This file contains the functions to generate a mesh from two images.
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
-
+from remove_background import region_fill
 
 def compute_disparity_map(rectified_images):
     """
@@ -204,20 +204,42 @@ def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
     std = np.std(points, axis=0)
     # Filter the points that are outside of 1.5 standard deviations
     points = points[np.all(np.sqrt((points - mean) ** 2)/ std < 1.5, axis=1)]
+
+
     # Convert the points to a depth map with the same size as the images and inf as the default value
-    depth_map = np.full([rectified_images[0].shape[0],rectified_images[0].shape[1]], np.inf)
-    # Convert the points to pixel coordinates
-    points[:, 2] *= 1000
-    points = np.round(points).astype(int)
+    depth_map = np.zeros_like(disparity_map) + np.inf
+
+    for point in points:
+        depth_map[int(point[1]), int(point[0])] = point[2]
+
+    # # process the depth map
+    # # Remove some left over background artifacts
+    # depth_map = cv.morphologyEx(depth_map, cv.MORPH_DILATE, None, iterations=4)
+    # depth_map = cv.bitwise_not(depth_map)
+    # # Closing
+    # kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (50, 50))
+    # depth_map = cv.morphologyEx(depth_map, cv.MORPH_CLOSE, kernel, iterations=2)
+    # # Swap to an inverse mask
+    # holes = cv.bitwise_not(depth_map)
+    # # Isolate the holes (By flooding the background with white)
+    # region_fill(holes, (depth_map.shape[0] - 1, 0), 1)
+    # depth_map = cv.bitwise_or(depth_map, holes)
+    # # Remove the holes
+    # depth_map = cv.bitwise_not(depth_map)
+
+
+    # Created a colored depth map for display purposes
+    display_depth_map = np.stack([depth_map, depth_map, depth_map], axis=2)
     # Set the depth map values to the z values of the points
-    depth_map[points[:, 1], points[:, 0]] = points[:, 2]
-    # Display the depth map with inf as purple
-    # calculate max and min values excluding inf
-    max_val = np.max(depth_map[depth_map != np.inf])
-    min_val = np.min(depth_map[depth_map != np.inf])
+    display_depth_map[depth_map == np.inf] = [0, 0, 0]
+    # Scale depth in the range 0-255
+    display_depth_map = cv.normalize(display_depth_map, display_depth_map, alpha=0, beta=255, norm_type=cv.NORM_MINMAX,
+                                        dtype=cv.CV_8U)
+    display_depth_map[depth_map == np.inf] = [0, 0, 255]
+
+    # Display the depth map
     fig, ax = plt.subplots()
-    ax.set_facecolor("red")
-    ax.imshow(depth_map, cmap='gray', vmin=min_val, vmax=max_val)
+    ax.imshow(display_depth_map)
     fig.show()
 
 
