@@ -13,9 +13,20 @@ def compute_disparity_map(rectified_images):
     :return: The disparity map
     """
 
-    stereo = cv.StereoBM_create(numDisparities=16, blockSize=11)
-    gray_images = [cv.cvtColor(image, cv.COLOR_BGR2GRAY) for image in rectified_images]
-    disparity = stereo.compute(gray_images[0], gray_images[1])
+    window_size = 30
+    min_disp = 16
+    num_disp = 112 - min_disp
+    stereo = cv.StereoSGBM_create(minDisparity=min_disp,
+                                  numDisparities=num_disp,
+                                  blockSize=32,
+                                  P1=8 * 3 * window_size ** 2,
+                                  P2=32 * 3 * window_size ** 2,
+                                  disp12MaxDiff=1,
+                                  uniquenessRatio=10,
+                                  speckleWindowSize=0,
+                                  speckleRange=0
+                                  )
+    disparity = stereo.compute(rectified_images[0], rectified_images[1])
     return disparity
 
 
@@ -50,30 +61,28 @@ def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
     cv.waitKey(0)
 
     # Use the disparity map to find the point cloud
-    point_cloud = cv.reprojectImageTo3D(disparity_map, calibration_data[f'Q{suffix}'], handleMissingValues=True)
+
     points = []
-    for i in range(1024):
-        for j in range(1024):
-            point = point_cloud[i][j]
-            validx = -999 < point[0] < 999
-            validy = -999 < point[1] < 999
-            validz = -1999 < point[2] < 1999
-            if validx and validy and validz:
-                points.append(point)
-    points = np.array(points)
-    # plot the point cloud 2D
-    plt.figure()
-    plt.scatter(points[:, 0], points[:, 1], s=0.1)
-    plt.show()
-    # plot the point cloud
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(points[:, 0], points[:, 2], points[:, 1], s=0.1)
-    ax.set_xlabel('X Label')
-    ax.set_ylabel('Y Label')
-    ax.set_zlabel('Z Label')
-    plt.show()
-    return point_cloud
+
+    # for i in range(1024):
+    #     for j in range(1024):
+    #         if disparity_map[i][j] != 0:
+    #             point = [j, i, 1/disparity_map[i][j]]
+    #             points.append(point)
+    # points = np.array(points)
+    # # plot the point cloud 2D
+    # plt.figure()
+    # plt.scatter(points[:, 0], points[:, 1], s=0.1)
+    # plt.show()
+    # # plot the point cloud
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    # ax.scatter(points[:, 0], points[:, 2], points[:, 1], s=0.1)
+    # ax.set_xlabel('X Label')
+    # ax.set_ylabel('Y Label')
+    # ax.set_zlabel('Z Label')
+    # plt.show()
+    return None
 
 
 def create_point_cloud_file(vertices, colors, filename):
