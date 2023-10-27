@@ -14,18 +14,46 @@ def compute_disparity_map(rectified_images):
     """
 
     window_size = 30
-    min_disp = 16
-    num_disp = 112 - min_disp
+    min_disp = -1
+    max_disp = 31
+    num_disp = max_disp - min_disp  # Needs to be divisible by 16
     stereo = cv.StereoSGBM_create(minDisparity=min_disp,
                                   numDisparities=num_disp,
                                   blockSize=32,
                                   P1=8 * 3 * window_size ** 2,
                                   P2=32 * 3 * window_size ** 2,
                                   disp12MaxDiff=1,
-                                  uniquenessRatio=10,
+                                  uniquenessRatio=0,
                                   speckleWindowSize=0,
                                   speckleRange=0
                                   )
+    disparity = stereo.compute(rectified_images[0], rectified_images[1])
+    return disparity
+def compute_disparity_map_graph_cut(rectified_images):
+    window_size = 30
+    block_size = 5
+    min_disp = -1
+    max_disp = 47
+    num_disp = max_disp - min_disp  # Needs to be divisible by 16
+
+    stereo = cv.StereoSGBM_create(
+        # Adjust these parameters by trial and error.
+        numDisparities=num_disp,
+        blockSize=block_size,
+        uniquenessRatio=0,
+        speckleWindowSize=0,
+        speckleRange=0,
+        disp12MaxDiff=-1,
+        P1=8 * 3 * block_size ** 2,  # 8*img_channels*block_size**2
+        P2=32 * 3 * block_size ** 2,  # 32*img_channels*block_size**2
+        mode=cv.STEREO_SGBM_MODE_HH  # Use Graph Cut mode
+    )
+    disparity = stereo.compute(rectified_images[0], rectified_images[1])
+    return disparity
+def compute_disparity_map_block_matching(rectified_images):
+    block_size = 5  # Adjust the block size based on your preference
+    num_disparities = 16  # Adjust based on the range of disparities in your images
+    stereo = cv.StereoBM_create(numDisparities=num_disparities, blockSize=block_size)
     disparity = stereo.compute(rectified_images[0], rectified_images[1])
     return disparity
 
@@ -40,13 +68,11 @@ def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
     :param images: The two images to generate the mesh from
     :return: The mesh
     """
-    # TODO: add foreground mask support
-    # TODO: fix point cloud, how to choose points? SIFT?
 
 
 
     # Compute the disparity map
-    disparity_map = compute_disparity_map(rectified_images)  # or use gray_images?
+    disparity_map = compute_disparity_map_graph_cut(rectified_images)  # or use gray_images?
 
     # Set values smaller than 0 to 0 (these are invalid disparities just like the zeroes)
     disparity_map_invalid = disparity_map <= 0
