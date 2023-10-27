@@ -57,16 +57,17 @@ def compute_disparity_map_block_matching(rectified_images):
     disparity = stereo.compute(rectified_images[0], rectified_images[1])
     return disparity
 
-def compute_disparity_map_interactively(rectified_images):
+def compute_disparity_map_interactively(images, mask):
     """
     Compute the disparity map from two rectified images in an interactive window, where we can adjust the parameters.
     Args:
-        rectified_images:
+        images:
 
     Returns:
 
     """
     #Default values
+    use_mask = False
     colorize = True
     display_range_lower_bound = 0 # The lower bound of the range to display the disparity map
     display_range_upper_bound = 255 # The upper bound of the range to display the disparity map
@@ -81,7 +82,6 @@ def compute_disparity_map_interactively(rectified_images):
     P1 = 8 * 3 * block_size ** 2  # 8*img_channels*block_size**2
     P2 = 32 * 3 * block_size ** 2  # 32*img_channels*block_size**2
     mode = cv.STEREO_SGBM_MODE_HH  # Use Graph Cut mode
-    # Create the stereo matcher object with the parameters we set above
 
     # Create an interactive window to adjust the parameters
     cv.namedWindow("Disparity", cv.WINDOW_NORMAL)
@@ -97,6 +97,8 @@ def compute_disparity_map_interactively(rectified_images):
     cv.createTrackbar("display_range_lower_bound", "Disparity", display_range_lower_bound, 1000, lambda x: x)
     cv.createTrackbar("display_range_upper_bound", "Disparity", display_range_upper_bound, 1000, lambda x: x)
     cv.createTrackbar("colorize", "Disparity", colorize,1, lambda x: x)
+    cv.createTrackbar("use_mask", "Disparity", use_mask, 1, lambda x: x)
+
     # Wait until the user presses 'q' on the keyboard
     while cv.waitKey(1) != ord('q'):
         # Get the current trackbar positions
@@ -112,6 +114,7 @@ def compute_disparity_map_interactively(rectified_images):
         display_range_lower_bound = cv.getTrackbarPos("display_range_lower_bound", "Disparity")
         display_range_upper_bound = cv.getTrackbarPos("display_range_upper_bound", "Disparity")
         colorize = cv.getTrackbarPos("colorize", "Disparity")
+        use_mask = cv.getTrackbarPos("use_mask", "Disparity")
 
         # Create the stereo matcher object with the parameters we set above
         stereo = cv.StereoSGBM_create(
@@ -126,7 +129,13 @@ def compute_disparity_map_interactively(rectified_images):
             P2=P2,  # 32*img_channels*block_size**2
             mode=mode  # Use Graph Cut mode
         )
-        disparity = stereo.compute(rectified_images[0], rectified_images[1])
+        im1 = images[0].copy()
+        im2 = images[1].copy()
+        if use_mask:
+            im1[mask[0] != 255] = [0, 0, 0]
+            im2[mask[1] != 255] = [0, 0, 0]
+
+        disparity = stereo.compute(im1, im2)
         # Display the disparity map
         # Convert to float32 Why?
         disparity_map = np.float32(np.divide(disparity, 16.0))  # Why
@@ -177,7 +186,7 @@ def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
 
 
     # Compute the disparity map
-    disparity_map = compute_disparity_map_interactively(rectified_images)
+    disparity_map = compute_disparity_map_interactively(rectified_images, mask=foreground_masks)
 
     # Use the disparity map to find the point cloud
 
