@@ -30,7 +30,7 @@ def preprocess(images, suffix=None):
     # Apply mask to rectified images keeping in mind that the mask is 255 for the foreground and 0 for the background
     rect_images[0, rect_mask[0] != 255] = [0, 0, 0]
     rect_images[1, rect_mask[1] != 255] = [0, 0, 0]
-    return rect_images, rect_mask
+    return images, mask
 
 
 # Only execute to generate the calibration data file

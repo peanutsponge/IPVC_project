@@ -57,6 +57,136 @@ def compute_disparity_map_block_matching(rectified_images):
     disparity = stereo.compute(rectified_images[0], rectified_images[1])
     return disparity
 
+def compute_disparity_map_interactively(rectified_images):
+    """
+    Compute the disparity map from two rectified images in an interactive window, where we can adjust the parameters.
+    Args:
+        rectified_images:
+
+    Returns:
+
+    """
+    #Default values
+    normalise = True
+    display_range_lower_bound = 0 # The lower bound of the range to display the disparity map
+    display_range_upper_bound = 255 # The upper bound of the range to display the disparity map
+    block_size = 5
+    min_disp = -1
+    max_disp = 47
+    num_disp = max_disp - min_disp  # Needs to be divisible by 16
+    uniquenessRatio = 0
+    speckleWindowSize = 0
+    speckleRange = 0
+    disp12MaxDiff = -1
+    P1 = 8 * 3 * block_size ** 2  # 8*img_channels*block_size**2
+    P2 = 32 * 3 * block_size ** 2  # 32*img_channels*block_size**2
+    mode = cv.STEREO_SGBM_MODE_HH  # Use Graph Cut mode
+    # Create the stereo matcher object with the parameters we set above
+
+    # Create an interactive window to adjust the parameters
+    cv.namedWindow("Disparity", cv.WINDOW_NORMAL)
+    cv.createTrackbar("block_size", "Disparity", block_size, 50, lambda x: x)
+    cv.createTrackbar("num_disparities", "Disparity", num_disp, 100, lambda x: x * 16)
+    cv.createTrackbar("uniquenessRatio", "Disparity", uniquenessRatio, 100, lambda x: x)
+    cv.createTrackbar("speckleWindowSize", "Disparity", speckleWindowSize, 200, lambda x: x)
+    cv.createTrackbar("speckleRange", "Disparity", speckleRange, 100, lambda x: x)
+    cv.createTrackbar("disp12MaxDiff", "Disparity", disp12MaxDiff, 100, lambda x: x)
+    cv.createTrackbar("P1", "Disparity", P1, 1000, lambda x: x)
+    cv.createTrackbar("P2", "Disparity", P2, 1000, lambda x: x)
+    cv.createTrackbar("mode", "Disparity", mode, 1, lambda x: x)
+    cv.createTrackbar("display_range_lower_bound", "Disparity", display_range_lower_bound, 1000, lambda x: x)
+    cv.createTrackbar("display_range_upper_bound", "Disparity", display_range_upper_bound, 1000, lambda x: x)
+    cv.createTrackbar("normalise", "Disparity", normalise, 1, lambda x: x)
+    # Wait until the user presses 'q' on the keyboard
+    while cv.waitKey(1) != ord('q'):
+        # Get the current trackbar positions
+        block_size = cv.getTrackbarPos("block_size", "Disparity")
+        num_disp = cv.getTrackbarPos("num_disparities", "Disparity")
+        uniquenessRatio = cv.getTrackbarPos("uniquenessRatio", "Disparity")
+        speckleWindowSize = cv.getTrackbarPos("speckleWindowSize", "Disparity")
+        speckleRange = cv.getTrackbarPos("speckleRange", "Disparity")
+        disp12MaxDiff = cv.getTrackbarPos("disp12MaxDiff", "Disparity")
+        P1 = cv.getTrackbarPos("P1", "Disparity")
+        P2 = cv.getTrackbarPos("P2", "Disparity")
+        mode = cv.getTrackbarPos("mode", "Disparity")
+        display_range_lower_bound = cv.getTrackbarPos("display_range_lower_bound", "Disparity")
+        display_range_upper_bound = cv.getTrackbarPos("display_range_upper_bound", "Disparity")
+        normalise = cv.getTrackbarPos("normalise", "Disparity")
+
+        # Create the stereo matcher object with the parameters we set above
+        stereo = cv.StereoSGBM_create(
+            # Adjust these parameters by trial and error.
+            numDisparities=num_disp,
+            blockSize=block_size,
+            uniquenessRatio=uniquenessRatio,
+            speckleWindowSize=speckleWindowSize,
+            speckleRange=speckleRange,
+            disp12MaxDiff=disp12MaxDiff,
+            P1=P1,  # 8*img_channels*block_size**2
+            P2=P2,  # 32*img_channels*block_size**2
+            mode=mode  # Use Graph Cut mode
+        )
+        disparity = stereo.compute(rectified_images[0], rectified_images[1])
+        # Display the disparity map
+        # Convert to float32 Why?
+        disparity = np.float32(np.divide(disparity, 16.0))  # Why
+        if normalise:
+            disparity_map = cv.normalize(disparity, disparity, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
+        else:
+            disparity_map = disparity
+        #disparity_map = cv.applyColorMap(disparity_map, cv.COLORMAP_JET)
+        # make everything below the lower bound black
+        disparity_map[disparity_map < display_range_lower_bound] = display_range_lower_bound
+        # make everything above the upper bound black
+        disparity_map[disparity_map > display_range_upper_bound] = display_range_upper_bound
+        # Scale the disparity map to 0-255
+        disparity_map = np.uint8(np.divide(disparity_map, (display_range_upper_bound - display_range_lower_bound) / 255))
+
+
+
+
+        # Show the disparity map in the interactive window
+        cv.imshow("Disparity", disparity_map)
+        # wait for 100ms
+        cv.waitKey(100)
+
+    # Close the window
+    cv.destroyWindow("Disparity")
+    return disparity
+
+
+def compute_and_display_disparity_map_interactively(rectified_images, parameters):
+    """
+
+    Args:
+        rectified_images:
+        parameters:
+
+    Returns:
+
+    """
+    num_disp, block_size, uniquenessRatio, speckleWindowSize, speckleRange, disp12MaxDiff, P1, P2, mode = parameters
+    stereo = cv.StereoSGBM_create(
+        # Adjust these parameters by trial and error.
+        numDisparities=num_disp,
+        blockSize=block_size,
+        uniquenessRatio=uniquenessRatio,
+        speckleWindowSize=speckleWindowSize,
+        speckleRange=speckleRange,
+        disp12MaxDiff=disp12MaxDiff,
+        P1=P1,  # 8*img_channels*block_size**2
+        P2=P2,  # 32*img_channels*block_size**2
+        mode=mode  # Use Graph Cut mode
+    )
+    disparity = stereo.compute(rectified_images[0], rectified_images[1])
+    # Display the disparity map
+    # Convert to float32 Why?
+    disparity = np.float32(np.divide(disparity, 16.0))  # Why 16?
+    disparity_map = cv.normalize(disparity, disparity, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
+    # Show the disparity map in the interactive window
+    cv.imshow("Disparity", disparity_map)
+    return disparity
+
 
 def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
     """
@@ -72,19 +202,7 @@ def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
 
 
     # Compute the disparity map
-    disparity_map = compute_disparity_map_graph_cut(rectified_images)  # or use gray_images?
-
-    # Set values smaller than 0 to 0 (these are invalid disparities just like the zeroes)
-    disparity_map_invalid = disparity_map <= 0
-    disparity_map[disparity_map_invalid] = 0
-
-    # Convert to float32 Why?
-    disparity_map = np.float32(np.divide(disparity_map, 16.0))  # Why 16?
-
-    # Show the disparity map
-    cv.imshow("Disparity",
-              cv.normalize(disparity_map, disparity_map, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U))
-    cv.waitKey(0)
+    disparity_map = compute_disparity_map_interactively(rectified_images)
 
     # Use the disparity map to find the point cloud
 
