@@ -42,6 +42,12 @@ def getPoints(image1,image2,old_points1,old_points2,method):
         case "ORB":
             matchObj = cv.ORB_create()
             matchMethod = cv.NORM_HAMMING
+        case "AKAZE":
+            matchObj = cv.AKAZE_create(threshold=0.0001)
+            matchMethod = cv.NORM_HAMMING
+        case _:
+            print("Invalid method")
+            return
 
     # Get points
     kp1, des1 = matchObj.detectAndCompute(image1,None)
@@ -88,6 +94,7 @@ def generate_mesh(rectified_images, calibration_data, camera_names):
     points2 = []
     getPoints(rectified_images[0],rectified_images[1],points1,points2,"ORB")
     getPoints(rectified_images[0],rectified_images[1],points1,points2,"SIFT")
+    getPoints(rectified_images[0],rectified_images[1],points1,points2,"AKAZE")
     points1 = np.array(points1)
     points2 = np.array(points2)
     print("Matched points shape: ",points1.shape, points2.shape)  
