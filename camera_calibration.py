@@ -161,7 +161,9 @@ def stereo_rectify(mtx1, dist1, mtx2, dist2, R, T, width, height):
     return R1, R2, P1, P2, Q, map1x, map1y, map2x, map2y, validPixROI1, validPixROI2
 
 
-def rectify_images(image1, image2, map1x, map1y, map2x, map2y, ROI1, ROI2):
+def rectify_images(image1, image2, map1x, map1y, map2x, map2y, ROI1, ROI2, suffix):
+    #We have two different sizes of ROI, we need to crop both images at the same y levels
+
     # Apply rectification maps to the images
     rectified_image1 = cv.remap(image1, map1x, map1y, interpolation=cv.INTER_LINEAR)#, borderMode=cv.BORDER_CONSTANT)
     rectified_image2 = cv.remap(image2, map2x, map2y, interpolation=cv.INTER_LINEAR)#, borderMode=cv.BORDER_CONSTANT)
@@ -175,19 +177,28 @@ def rectify_images(image1, image2, map1x, map1y, map2x, map2y, ROI1, ROI2):
     #cv.rectangle(rectified_image1, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
     #cv.rectangle(rectified_image2, (x2, y2), (x2 + w2, y2 + h2), (0, 255, 0), 2)
 
-    #get max from y1 and y2
-    y_max = max(y1,y2)
-    w_min = min(w1,w2)
-    y_low = min(y1+h1,y2+h2)
+    # get max from y1 and y2
+    y_max = max(y1, y2)
+    w_min = min(w1, w2)
+    y_low = min(y1 + h1, y2 + h2)
     h_min = y_low - y_max
+
+    #Crop the images place both crops at the same y level but move most left
+
 
     #draw the blue rectangle that we plan to crop on the images
     #cv.rectangle(rectified_image1, (x1, y_max), (x1 + w_min, y_max + h_min), (255, 0, 0), 2)
     #cv.rectangle(rectified_image2, (x2, y_max), (x2 + w_min, y_max + h_min), (255, 0, 0), 2)
 
     #crop out the blue rectangle from the images
-    cropped_image1 = rectified_image1[y_max:y_max+h_min, x1:x1+w_min]
-    cropped_image2 = rectified_image2[y_max:y_max+h_min, x2:x2+w_min]
+
+    if suffix == "_mr":
+        x1 = x1 + w1 - w_min
+        x2 = x2 + w2 - w_min
+
+    #Crop the images place both crops at the same y level but move the crop most right
+    cropped_image1 = rectified_image1[y_max:y_max + h_min, x1:x1 + w_min]
+    cropped_image2 = rectified_image2[y_max:y_max + h_min, x2:x2 + w_min]
 
     #show the images
     #cv.imshow('img1', rectified_image1)

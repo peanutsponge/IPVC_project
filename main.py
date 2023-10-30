@@ -22,10 +22,10 @@ def preprocess(images, suffix=None):
     # Stereo rectification to facilitate the dense stereo matching, also performs non-linear distortion correction!
     rect_images = rectify_images(images[0], images[1], calibration_data[f'map1x{suffix}'],
                                  calibration_data[f'map1y{suffix}'],
-                                 calibration_data[f'map2x{suffix}'], calibration_data[f'map2y{suffix}'],calibration_data[f'ROI1{suffix}'],calibration_data[f'ROI2{suffix}'])
+                                 calibration_data[f'map2x{suffix}'], calibration_data[f'map2y{suffix}'],calibration_data[f'ROI1{suffix}'],calibration_data[f'ROI2{suffix}'], suffix)
     rect_mask = rectify_images(mask[0], mask[1], calibration_data[f'map1x{suffix}'],
                                calibration_data[f'map1y{suffix}'],
-                               calibration_data[f'map2x{suffix}'], calibration_data[f'map2y{suffix}'], calibration_data[f'ROI1{suffix}'],calibration_data[f'ROI2{suffix}'])
+                               calibration_data[f'map2x{suffix}'], calibration_data[f'map2y{suffix}'], calibration_data[f'ROI1{suffix}'],calibration_data[f'ROI2{suffix}'], suffix)
 
     return rect_images, rect_mask#np.array(mask)
 
@@ -43,21 +43,24 @@ images_LM, mask_LM = preprocess([triplet[0], triplet[1]], "_lm")
 images_MR, mask_MR = preprocess([triplet[1], triplet[2]], "_mr")
 
 # Display the images
-cv.imshow("Left", images_LM[0])
-cv.imshow("Middle", images_LM[1])
-cv.imshow("Middle 2", images_MR[0])
-cv.imshow("Right", images_MR[1])
-cv.waitKey(0)
+# cv.imshow("Left", images_LM[0])
+# cv.imshow("Middle", images_LM[1])
+# cv.imshow("Middle 2", images_MR[0])
+# cv.imshow("Right", images_MR[1])
+# cv.waitKey(0)
 
 # Display the mask
-cv.imshow("Left", mask_LM[0])
-cv.imshow("Middle", mask_LM[1])
-cv.imshow("Middle 2", mask_MR[0])
-cv.imshow("Right", mask_MR[1])
-cv.waitKey(0)
+# cv.imshow("Left", mask_LM[0])
+# cv.imshow("Middle", mask_LM[1])
+# cv.imshow("Middle 2", mask_MR[0])
+# cv.imshow("Right", mask_MR[1])
+# cv.waitKey(0)
+
+#TODO: returns two point clouds, merge them and then create mesh from the combined point cloud
 
 # Generate two meshes
 mesh_LM = generate_mesh(images_LM, mask_LM, calibration_data, "_lm")
+print('HOI')
 mesh_MR = generate_mesh(images_MR, mask_MR, calibration_data, "_mr")
 
 # Merge the meshes using the ICP algorithm (iterated closest points)
