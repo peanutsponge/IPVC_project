@@ -167,11 +167,11 @@ def compute_disparity_map_interactively(images, mask):
         cv.setMouseCallback("Disparity", lambda event, x, y, flags, param: print(disparity[y, x]))
         # wait for 100ms
         cv.waitKey(100)
-        break
 
     # Close the window
     cv.destroyWindow("Disparity")
     return disparity
+
 
 
 def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
@@ -187,6 +187,8 @@ def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
 
     # Compute the disparity map
     disparity_map = compute_disparity_map_interactively(rectified_images, mask=foreground_masks)
+
+    print(disparity_map.shape)
 
     # Use the disparity map to find the point cloud
 
@@ -204,7 +206,6 @@ def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
     std = np.std(points, axis=0)
     # Filter the points that are outside of 1.5 standard deviations
     points = points[np.all(np.sqrt((points - mean) ** 2)/ std < 1.5, axis=1)]
-
 
     # Convert the points to a depth map with the same size as the images and inf as the default value
     depth_map = np.zeros_like(disparity_map) + np.inf
