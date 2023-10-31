@@ -5,9 +5,10 @@ import numpy as np
 import cv2 as cv
 from remove_background import get_foreground_mask_HSV
 from get_images import getTriplet
-from mesh import generate_mesh
+from mesh import generate_point_cloud, create_mesh, visualize_point_cloud, visualize_mesh
 from normalise_color import normalize_global_color_type
 from camera_calibration import get_calibration_data_from_file, rectify_images, calibrate_3_cameras_to_file
+from point_cloud_alignment import combine_point_clouds
 
 
 def preprocess(images, suffix=None):
@@ -58,14 +59,19 @@ images_MR, mask_MR = preprocess([triplet[1], triplet[2]], "_mr")
 
 #TODO: returns two point clouds, merge them and then create mesh from the combined point cloud
 
-# Generate two meshes
-mesh_LM = generate_mesh(images_LM, mask_LM, calibration_data, "_lm")
-print('HOI')
-mesh_MR = generate_mesh(images_MR, mask_MR, calibration_data, "_mr")
+# Generate two point clouds
+pc_LM = generate_point_cloud(images_LM, mask_LM, calibration_data, "_lm")
+pc_RM = generate_point_cloud(images_MR, mask_MR, calibration_data, "_mr")
+print('Finished generating point clouds')
+#visualize_point_cloud(pc_LM)
 
-# Merge the meshes using the ICP algorithm (iterated closest points)
+# Merge the point clouds using the ICP algorithm (iterated closest points)
+pc_combined = combine_point_clouds(pc_RM, pc_LM)
 
+# Create mesh from the point cloud
+mesh = create_mesh(pc_combined, 'pc_combined', 5)
+visualize_mesh(mesh)
 
-# Save the mesh to a file
+# Save mesh to file
 
 # Plot the mesh

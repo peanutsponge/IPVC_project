@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import open3d as o3d
 from remove_background import region_fill
 
-def visualize_point_cloud(filename):
+def visualize_point_cloud_file(filename):
     point_cloud = o3d.io.read_point_cloud(filename)
     #o3d.visualization.draw_geometries([point_cloud])
 
@@ -31,27 +31,41 @@ def visualize_point_cloud(filename):
     vis.run()
     vis.destroy_window()
 
-def create_mesh(points,name, alpha = 0.02):
-    """
-    Create a mesh from a point cloud.
-    :param points: The point cloud to create the mesh from
-    :param name: The name of the mesh
-    :param alpha: The alpha value to use for the mesh
-    :return: The mesh
-    """
-    # if index error, try to change the alpha value
-    # Put points into a open3d point cloud
-    point_cloud = o3d.geometry.PointCloud()
-    point_cloud.points = o3d.utility.Vector3dVector(points)
+def visualize_point_cloud(pcd):
+    # Create a visualizer object
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+
+    # Add the point cloud to the visualizer
+    vis.add_geometry(pcd)
+
+    # Customize visualization settings
+    vis.get_render_option().point_size = 1.0  # Adjust point size
+    vis.get_render_option().background_color = [0, 0, 0]  # Set background color to black
+
+    # Set the camera viewpoint (optional)
+    view_control = vis.get_view_control()
+    view_control.set_front([0, 0, 1])  # Adjust the camera's orientation
+    view_control.set_up([0, 1, 0])  # Adjust the camera's orientation
+
+    # Capture and render the visualization
+    vis.run()
+    vis.destroy_window()
+
+def create_mesh(point_cloud, name, alpha = 0.02):
     # Create a mesh from the point cloud
     mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(point_cloud, alpha)
     mesh.compute_vertex_normals()
+    mesh.compute_triangle_normals()
+    # Save the mesh to a stl file
+    #o3d.io.write_triangle_mesh("output/mesh_"+name+".stl", mesh)
+    return mesh
+
+def visualize_mesh(mesh):
     # plot the mesh
     o3d.visualization.draw_geometries([mesh])
-    # Save the mesh to a stl file
-    o3d.io.write_triangle_mesh("output/mesh_"+name+".stl", mesh)
 
-def compute_disparity_map(images, mask=None):
+def compute_disparity_map_old(images, mask=None):
     """
     Compute the disparity map from two rectified images.
     :param rectified_images: The two rectified images to compute the disparity map from needs to be in uint8 format
@@ -76,6 +90,47 @@ def compute_disparity_map(images, mask=None):
                                   mode = cv.STEREO_SGBM_MODE_HH
                                   )
     disparity = stereo.compute(im1, im2)
+    disparity = np.float32(np.divide(disparity, 16.0))
+    return disparity
+
+def compute_disparity_map(images, suffix, mask=None):
+    """
+    Compute the disparity map from two rectified images.
+    :param rectified_images: The two rectified images to compute the disparity map from needs to be in uint8 format
+    :return: The disparity map
+    """
+    im1 = images[0].copy()
+    im2 = images[1].copy()
+    if mask is not None:
+        im1[mask[0] != 255] = [0, 0, 0]
+        im2[mask[1] != 255] = [0, 0, 0]
+
+    block_size = 5
+    num_disp = 48  # Needs to be divisible by 16
+    left_matcher = cv.StereoSGBM_create(numDisparities=num_disp,
+                                        blockSize=block_size,
+                                        P1=8 * 3 * block_size ** 2,
+                                        P2=32 * 3 * block_size ** 2,
+                                        disp12MaxDiff=100,
+                                        uniquenessRatio=5,
+                                        speckleWindowSize=9,
+                                        speckleRange=2,
+                                        mode=cv.STEREO_SGBM_MODE_HH
+                                        )
+
+    right_matcher = cv.ximgproc.createRightMatcher(left_matcher)
+    left_disp = left_matcher.compute(im1, im2)
+    right_disp = right_matcher.compute(im2, im1)
+
+    wls_filter = cv.ximgproc.createDisparityWLSFilter(left_matcher)
+    wls_filter.setLambda(8000.0)
+    wls_filter.setSigmaColor(1.5)
+
+    if suffix == "_lm":
+        disparity = wls_filter.filter(disparity_map_left=left_disp, left_view=im2, disparity_map_right=right_disp)
+    else:
+        disparity = wls_filter.filter(disparity_map_left=left_disp, left_view=im1, disparity_map_right=right_disp)
+
     disparity = np.float32(np.divide(disparity, 16.0))
     return disparity
 
@@ -181,11 +236,9 @@ def compute_disparity_map_interactively(images, mask):
     cv.destroyWindow("Disparity")
     return disparity
 
-
-
-def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
+def generate_point_cloud(rectified_images, foreground_masks, calibration_data, suffix):
     # Compute the disparity map, note that the first image passed is what the disparity map is based on
-    disparity_map = compute_disparity_map(rectified_images, mask=foreground_masks)
+    disparity_map = compute_disparity_map(rectified_images, suffix, mask=foreground_masks)
 
     # Apply first mask to disparity map
     disparity_map[foreground_masks[0] != 255] = 0
@@ -201,14 +254,13 @@ def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
     # important conversion for the reprojectImageTo3D function
     disparity_map = np.float32(np.divide(disparity_map, 16.0))
 
-    print(calibration_data[f'Q{suffix}'])
+    #print(calibration_data[f'Q{suffix}'])
 
     if suffix == "_lm":
         focal_length = (calibration_data['mtx_left'][0][0] + calibration_data['mtx_right'][1][1]) / 2
     elif suffix == "_mr":
         focal_length = (calibration_data['mtx_middle'][0][0] + calibration_data['mtx_middle'][1][1]) / 2
 
-    print('focal length: ', focal_length)
     Q = np.float32([[1, 0, 0, 0],
                    [0, -1, 0, 0],
                    [0, 0, focal_length * 0.05, 0],
@@ -234,10 +286,18 @@ def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
     colors = colors[background_points]
 
     # Create a point cloud file
-    create_point_cloud_file(point_cloud, colors, "point_cloud.ply")
-    visualize_point_cloud("point_cloud.ply")
+    #create_point_cloud_file(point_cloud, colors, "point_cloud.ply")
+    #visualize_point_cloud("point_cloud.ply")
 
-    return None
+    # Store the point cloud and colors in a pointcloud object
+    pc_obj = o3d.geometry.PointCloud()
+    pc_obj.points = o3d.utility.Vector3dVector(point_cloud)
+    pc_obj.colors = o3d.utility.Vector3dVector(colors/255)
+
+    # Visualize the point cloud
+    #visualize_point_cloud(pc_obj)
+
+    return pc_obj
 
 def create_point_cloud_file(vertices, colors, filename):
     colors = colors.reshape(-1, 3)

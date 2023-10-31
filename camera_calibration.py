@@ -167,7 +167,7 @@ def rectify_images(image1, image2, map1x, map1y, map2x, map2y, ROI1, ROI2, suffi
     # Apply rectification maps to the images
     rectified_image1 = cv.remap(image1, map1x, map1y, interpolation=cv.INTER_LINEAR)#, borderMode=cv.BORDER_CONSTANT)
     rectified_image2 = cv.remap(image2, map2x, map2y, interpolation=cv.INTER_LINEAR)#, borderMode=cv.BORDER_CONSTANT)
-    print(ROI1, ROI2)
+    #print(ROI1, ROI2)
 
     # Crop the images to remove black borders
     x1, y1, w1, h1 = ROI1
