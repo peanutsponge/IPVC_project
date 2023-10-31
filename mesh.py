@@ -3,13 +3,22 @@ This file contains the functions to generate a mesh from two images.
 """
 import cv2 as cv
 import numpy as np
-import matplotlib.pyplot as plt
 import open3d as o3d
-from remove_background import region_fill
+import copy
 
-def visualize_point_cloud(filename):
+
+def draw_registration_result(source, target, transformation):
+    source_temp = copy.deepcopy(source)
+    target_temp = copy.deepcopy(target)
+    source_temp.paint_uniform_color([1, 0.706, 0])
+    target_temp.paint_uniform_color([0, 0.651, 0.929])
+    source_temp.transform(transformation)
+    o3d.visualization.draw_geometries([source_temp, target_temp])
+
+
+def visualize_mesh(filename):
     point_cloud = o3d.io.read_point_cloud(filename)
-    #o3d.visualization.draw_geometries([point_cloud])
+    # o3d.visualization.draw_geometries([point_cloud])
 
     # Create a visualizer object
     vis = o3d.visualization.Visualizer()
@@ -31,7 +40,8 @@ def visualize_point_cloud(filename):
     vis.run()
     vis.destroy_window()
 
-def create_mesh(points,name, alpha = 0.02):
+
+def create_mesh(points, name, alpha=0.02):
     """
     Create a mesh from a point cloud.
     :param points: The point cloud to create the mesh from
@@ -49,213 +59,46 @@ def create_mesh(points,name, alpha = 0.02):
     # plot the mesh
     o3d.visualization.draw_geometries([mesh])
     # Save the mesh to a stl file
-    o3d.io.write_triangle_mesh("output/mesh_"+name+".stl", mesh)
+    o3d.io.write_triangle_mesh("output/mesh_" + name + ".stl", mesh)
+    return mesh
 
-def compute_disparity_map(images, mask=None):
+
+def merge_point_clouds(point_cloud_lm, point_cloud_mr):
     """
-    Compute the disparity map from two rectified images.
-    :param rectified_images: The two rectified images to compute the disparity map from needs to be in uint8 format
-    :return: The disparity map
+    Merges two point clouds into one using the iterative closest point algorithm.
+    Args:
+        point_cloud_lm:
+        point_cloud_mr:
+
+    Returns:
+        point_cloud: The merged point cloud
     """
-    im1 = images[0].copy()
-    im2 = images[1].copy()
-    if mask is not None:
-        im1[mask[0] != 255] = [0, 0, 0]
-        im2[mask[1] != 255] = [0, 0, 0]
+    source = o3d.geometry.PointCloud()
+    source.points = o3d.utility.Vector3dVector(point_cloud_lm)
+    target = o3d.geometry.PointCloud()
+    target.points = o3d.utility.Vector3dVector(point_cloud_mr)
+    threshold = 0.02
+    trans_init = np.asarray([[0.1, 0., 0., 0.],
+                             [0., 0.1, 0., 0.],
+                             [0., 0., 0.1, 0.],
+                             [0., 0., 0., 0.1]])
+    draw_registration_result(source, target, trans_init)
+    print("Initial alignment")
+    evaluation = o3d.pipelines.registration.evaluate_registration(source, target,
+                                                                  threshold, trans_init)
+    print(evaluation)
 
-    block_size = 5
-    num_disp = 32
-    stereo = cv.StereoSGBM_create(numDisparities=num_disp,
-                                  blockSize=block_size,
-                                  P1= 8 * 3 * block_size ** 2,
-                                  P2= 32 * 3 * block_size ** 2,
-                                  disp12MaxDiff=100,
-                                  uniquenessRatio=5,
-                                  speckleWindowSize=9,
-                                  speckleRange=2,
-                                  mode = cv.STEREO_SGBM_MODE_HH
-                                  )
-    disparity = stereo.compute(im1, im2)
-    disparity = np.float32(np.divide(disparity, 16.0))
-    return disparity
-
-def compute_disparity_map_interactively(images, mask):
-    # Default values
-    use_mask = True
-    colorize = True
-    display_range_lower_bound = 1  # The lower bound of the range to display the disparity map
-    display_range_upper_bound = 255  # The upper bound of the range to display the disparity map
-    block_size = 1
-    num_disp = 32  # Needs to be divisible by 16
-    uniquenessRatio = 2
-    speckleWindowSize = 20
-    speckleRange = 2
-    disp12MaxDiff = 100
-    P1 = 8 * 3 * block_size ** 2  # 8*img_channels*block_size**2
-    P2 = 32 * 3 * block_size ** 2  # 32*img_channels*block_size**2
-    mode = cv.STEREO_SGBM_MODE_HH  # Use Graph Cut mode
-
-    # Create an interactive window to adjust the parameters
-    cv.namedWindow("Disparity", cv.WINDOW_NORMAL)
-    cv.createTrackbar("block_size", "Disparity", block_size, 50, lambda x: x)
-    cv.createTrackbar("num_disparities", "Disparity", num_disp, 100, lambda x: x * 16)
-    cv.createTrackbar("uniquenessRatio", "Disparity", uniquenessRatio, 100, lambda x: x)
-    cv.createTrackbar("speckleWindowSize", "Disparity", speckleWindowSize, 200, lambda x: x)
-    cv.createTrackbar("speckleRange", "Disparity", speckleRange, 100, lambda x: x)
-    cv.createTrackbar("disp12MaxDiff", "Disparity", disp12MaxDiff, 100, lambda x: x)
-    cv.createTrackbar("P1", "Disparity", P1, 1000, lambda x: x)
-    cv.createTrackbar("P2", "Disparity", P2, 1000, lambda x: x)
-    cv.createTrackbar("mode", "Disparity", mode, 1, lambda x: x)
-    cv.createTrackbar("display_range_lower_bound", "Disparity", display_range_lower_bound, 1000, lambda x: x)
-    cv.createTrackbar("display_range_upper_bound", "Disparity", display_range_upper_bound, 1000, lambda x: x)
-    cv.createTrackbar("colorize", "Disparity", colorize, 1, lambda x: x)
-    cv.createTrackbar("use_mask", "Disparity", use_mask, 1, lambda x: x)
-
-    # Wait until the user presses 'q' on the keyboard
-    while cv.waitKey(1) != ord('q'):
-        # Get the current trackbar positions
-        block_size = cv.getTrackbarPos("block_size", "Disparity")
-        num_disp = cv.getTrackbarPos("num_disparities", "Disparity")
-        uniquenessRatio = cv.getTrackbarPos("uniquenessRatio", "Disparity")
-        speckleWindowSize = cv.getTrackbarPos("speckleWindowSize", "Disparity")
-        speckleRange = cv.getTrackbarPos("speckleRange", "Disparity")
-        disp12MaxDiff = cv.getTrackbarPos("disp12MaxDiff", "Disparity")
-        P1 = cv.getTrackbarPos("P1", "Disparity")
-        P2 = cv.getTrackbarPos("P2", "Disparity")
-        mode = cv.getTrackbarPos("mode", "Disparity")
-        display_range_lower_bound = cv.getTrackbarPos("display_range_lower_bound", "Disparity")
-        display_range_upper_bound = cv.getTrackbarPos("display_range_upper_bound", "Disparity")
-        colorize = cv.getTrackbarPos("colorize", "Disparity")
-        use_mask = cv.getTrackbarPos("use_mask", "Disparity")
-
-        # Create the stereo matcher object with the parameters we set above
-        stereo = cv.StereoSGBM_create(
-            # Adjust these parameters by trial and error.
-            numDisparities=num_disp,
-            blockSize=block_size,
-            uniquenessRatio=uniquenessRatio,
-            speckleWindowSize=speckleWindowSize,
-            speckleRange=speckleRange,
-            disp12MaxDiff=disp12MaxDiff,
-            P1=P1,  # 8*img_channels*block_size**2
-            P2=P2,  # 32*img_channels*block_size**2
-            mode=mode  # Use Graph Cut mode
-        )
-        im1 = images[0].copy()
-        im2 = images[1].copy()
-        if use_mask:
-            im1[mask[0] != 255] = [0, 0, 0]
-            im2[mask[1] != 255] = [0, 0, 0]
-
-        disparity = stereo.compute(im1, im2)
-        # Display the disparity map
-        # Convert to float32 Why?
-        disparity_map = np.float32(np.divide(disparity, 16.0))  # Why
-
-        if colorize:
-            # Color mark everything that is not in the range we want to display
-            mask_lower = np.zeros(disparity_map.shape, dtype=np.uint8)
-            mask_lower[disparity_map < display_range_lower_bound] = 255
-            mask_upper = np.zeros(disparity_map.shape, dtype=np.uint8)
-            mask_upper[disparity_map > display_range_upper_bound] = 255
-            # Color mark everything that is not in the range we want to display
-            disparity_map[disparity_map < display_range_lower_bound] = display_range_lower_bound
-            disparity_map[disparity_map > display_range_upper_bound] = display_range_upper_bound
-        # Normalize the disparity_map map to the range we want to display
-        disparity_map = cv.normalize(disparity_map, disparity_map, alpha=0, beta=255, norm_type=cv.NORM_MINMAX,
-                                     dtype=cv.CV_8U)
-        if colorize:
-            # Apply the masks as a color overlay
-            disparity_map = cv.applyColorMap(disparity_map, cv.COLORMAP_JET)
-            disparity_map[mask_lower == 255] = [0, 0, 0]
-            disparity_map[mask_upper == 255] = [255, 255, 255]
-
-        # Show the disparity map in the interactive window let the curser display the disparity value
-        cv.imshow("Disparity", disparity_map)
-        # Print the disparity value at the current mouse position in the interactive window
-        cv.setMouseCallback("Disparity", lambda event, x, y, flags, param: print(disparity[y, x]))
-        # wait for 100ms
-        cv.waitKey(100)
-
-    # Close the window
-    cv.destroyWindow("Disparity")
-    return disparity
-
-
-
-def generate_mesh(rectified_images, foreground_masks, calibration_data, suffix):
-    # Compute the disparity map, note that the first image passed is what the disparity map is based on
-    disparity_map = compute_disparity_map(rectified_images, mask=foreground_masks)
-
-    # Apply first mask to disparity map
-    disparity_map[foreground_masks[0] != 255] = 0
-
-    # If you want to see the disparity map, set this to True
-    show_disparity_map = False
-    if show_disparity_map:
-        _disparity_map = cv.normalize(disparity_map, disparity_map, alpha=0, beta=255, norm_type=cv.NORM_MINMAX, dtype=cv.CV_8U)
-        _disparity_map = cv.applyColorMap(_disparity_map, cv.COLORMAP_JET)
-        cv.imshow("Disparity", _disparity_map)
-        cv.waitKey(0)
-
-    # important conversion for the reprojectImageTo3D function
-    disparity_map = np.float32(np.divide(disparity_map, 16.0))
-
-    print(calibration_data[f'Q{suffix}'])
-
-    if suffix == "_lm":
-        focal_length = (calibration_data['mtx_left'][0][0] + calibration_data['mtx_right'][1][1]) / 2
-    elif suffix == "_mr":
-        focal_length = (calibration_data['mtx_middle'][0][0] + calibration_data['mtx_middle'][1][1]) / 2
-
-    print('focal length: ', focal_length)
-    Q = np.float32([[1, 0, 0, 0],
-                   [0, -1, 0, 0],
-                   [0, 0, focal_length * 0.05, 0],
-                   [0, 0, 0, 1]])
-    #Q = calibration_data[f'Q{suffix}'] # alternative, but sucks
-
-    # Use the disparity map to find the point cloud
-    point_cloud = cv.reprojectImageTo3D(disparity_map, Q, handleMissingValues=True)
-    colors = cv.cvtColor(rectified_images[0], cv.COLOR_BGR2RGB)
-    mask_map = disparity_map > disparity_map.min() # possibly the same as disparity_map_invalid
-
-    point_cloud = point_cloud[mask_map]
-    colors = colors[mask_map]
-
-    # Remove any coordinates that are invalid (i.e. have a value of inf), apply to both the point cloud and the colors
-    mask = np.all(np.isfinite(point_cloud), axis=1)
-    point_cloud = point_cloud[mask]
-    colors = colors[mask]
-
-    # Remove the background plane
-    background_points = point_cloud[:, 2] > 0
-    point_cloud = point_cloud[background_points]
-    colors = colors[background_points]
-
-    # Create a point cloud file
-    create_point_cloud_file(point_cloud, colors, "point_cloud.ply")
-    visualize_point_cloud("point_cloud.ply")
-
-    return None
-
-def create_point_cloud_file(vertices, colors, filename):
-    colors = colors.reshape(-1, 3)
-    vertices = np.hstack([vertices.reshape(-1, 3), colors])
-
-    ply_header = '''ply
-        format ascii 1.0
-        element vertex %(vert_num)d
-        property float x
-        property float y
-        property float z
-        property uchar red
-        property uchar green
-        property uchar blue
-        end_header
-        '''
-    with open(filename, 'w') as f:
-        f.write(ply_header % dict(vert_num=len(vertices)))
-        np.savetxt(f, vertices, '%f %f %f %d %d %d')
-    #close the file
-    f.close()
+    print("Apply point-to-point ICP")
+    reg_p2p = o3d.pipelines.registration.registration_icp(
+        source, target, threshold, trans_init,
+        o3d.pipelines.registration.TransformationEstimationPointToPoint())
+    print(reg_p2p)
+    print("Transformation is:")
+    print(reg_p2p.transformation)
+    print("")
+    draw_registration_result(source, target, reg_p2p.transformation)
+    # Apply transformation to the source point cloud
+    source.transform(reg_p2p.transformation)
+    # Merge the point clouds
+    point_cloud = target + source
+    return point_cloud
