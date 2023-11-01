@@ -16,27 +16,10 @@ square_size = 0.010  # 10mm x 10mm
 
 
 def deep_copy_images(images):
-    """
-    Deep copy a list of images
-    Args:
-        images:
-
-    Returns:
-
-    """
     return [image.copy() for image in images]
 
 
 def readImages(im_array, dir_path):
-    """
-    Read images from a directory and append them to a list
-    Args:
-        im_array: array to which the images will be appended
-        dir_path:
-
-    Returns: nothing
-
-    """
     filenames = os.listdir(dir_path)
     for filename in filenames:
         im = cv.imread(dir_path + os.path.sep + filename, 1)
@@ -44,15 +27,6 @@ def readImages(im_array, dir_path):
 
 
 def calibrate_camera(images_, camera_name):
-    """
-    Calibrate a single camera
-    Args:
-        images_:
-        camera_name:
-
-    Returns: Calibration metrics
-
-    """
     images = deep_copy_images(images_)  # to prevent drawing on the original images
 
     print('-> Calibrating camera: ', camera_name)
@@ -140,13 +114,13 @@ def stereo_calibrate(mtx1, dist1, mtx2, dist2, images1_, images2_, camera_name1,
         if c_ret1 == True and c_ret2 == True:
             corners1 = cv.cornerSubPix(gray1, corners1, (11, 11), (-1, -1), criteria)
             corners2 = cv.cornerSubPix(gray2, corners2, (11, 11), (-1, -1), criteria)
-            # # Show the corners to check if they are correct
-            # cv.drawChessboardCorners(frame1, (ch_rows,ch_cols), corners1,c_ret1)
-            # cv.imshow('img', frame1)
-            # k = cv.waitKey(500)
-            # cv.drawChessboardCorners(frame2, (ch_rows,ch_cols), corners2,c_ret2)
-            # cv.imshow('img', frame2)
-            # k = cv.waitKey(500)
+            # Show the corners to check if they are correct
+            cv.drawChessboardCorners(frame1, (ch_rows,ch_cols), corners1,c_ret1)
+            cv.imshow('img1', frame1)
+            #k = cv.waitKey(500)
+            cv.drawChessboardCorners(frame2, (ch_rows,ch_cols), corners2,c_ret2)
+            cv.imshow('img2', frame2)
+            k = cv.waitKey(1000)
             objpoints.append(objp)
             imgpoints_left.append(corners1)
             imgpoints_right.append(corners2)
@@ -184,27 +158,53 @@ def stereo_rectify(mtx1, dist1, mtx2, dist2, R, T, width, height):
     map1x, map1y = cv.initUndistortRectifyMap(mtx1, dist1, R1, P1, (width, height), cv.CV_32FC1)
     map2x, map2y = cv.initUndistortRectifyMap(mtx2, dist2, R2, P2, (width, height), cv.CV_32FC1)
 
-    return R1, R2, P1, P2, Q, map1x, map1y, map2x, map2y
+    return R1, R2, P1, P2, Q, map1x, map1y, map2x, map2y, validPixROI1, validPixROI2
 
 
-def rectify_images(image1, image2, map1x, map1y, map2x, map2y):
-    """
-    Rectify a pair of images, see cc_testing.ipynb for an example
-    Args:
-        image1:
-        image2:
-        map1x:
-        map1y:
-        map2x:
-        map2y:
+def rectify_images(image1, image2, map1x, map1y, map2x, map2y, ROI1, ROI2, suffix):
+    #We have two different sizes of ROI, we need to crop both images at the same y levels
 
-    Returns: Array of rectified images
-
-    """
     # Apply rectification maps to the images
-    rectified_image1 = cv.remap(image1, map1x, map1y, interpolation=cv.INTER_LINEAR, borderMode=cv.BORDER_CONSTANT)
-    rectified_image2 = cv.remap(image2, map2x, map2y, interpolation=cv.INTER_LINEAR)
-    return np.array([rectified_image1, rectified_image2])
+    rectified_image1 = cv.remap(image1, map1x, map1y, interpolation=cv.INTER_LINEAR)#, borderMode=cv.BORDER_CONSTANT)
+    rectified_image2 = cv.remap(image2, map2x, map2y, interpolation=cv.INTER_LINEAR)#, borderMode=cv.BORDER_CONSTANT)
+    #print(ROI1, ROI2)
+
+    # Crop the images to remove black borders
+    x1, y1, w1, h1 = ROI1
+    x2, y2, w2, h2 = ROI2
+
+    # draw the rectangle on the images
+    #cv.rectangle(rectified_image1, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 2)
+    #cv.rectangle(rectified_image2, (x2, y2), (x2 + w2, y2 + h2), (0, 255, 0), 2)
+
+    # get max from y1 and y2
+    y_max = max(y1, y2)
+    w_min = min(w1, w2)
+    y_low = min(y1 + h1, y2 + h2)
+    h_min = y_low - y_max
+
+    #Crop the images place both crops at the same y level but move most left
+
+
+    #draw the blue rectangle that we plan to crop on the images
+    #cv.rectangle(rectified_image1, (x1, y_max), (x1 + w_min, y_max + h_min), (255, 0, 0), 2)
+    #cv.rectangle(rectified_image2, (x2, y_max), (x2 + w_min, y_max + h_min), (255, 0, 0), 2)
+
+    #crop out the blue rectangle from the images
+
+    if suffix == "_mr":
+        x1 = x1 + w1 - w_min
+        x2 = x2 + w2 - w_min
+
+    #Crop the images place both crops at the same y level but move the crop most right
+    cropped_image1 = rectified_image1[y_max:y_max + h_min, x1:x1 + w_min]
+    cropped_image2 = rectified_image2[y_max:y_max + h_min, x2:x2 + w_min]
+
+    #show the images
+    #cv.imshow('img1', rectified_image1)
+    #cv.imshow('img2', rectified_image2)
+    #cv.waitKey(0)
+    return np.array([cropped_image1, cropped_image2])
 
 
 
@@ -238,11 +238,11 @@ def calibrate_3_cameras_to_file(filename='calibration_data.pkl'):
     height = left_images[0].shape[0]
 
     # stereo_rectify function for left and middle cameras
-    R1_lm, R2_lm, P1_lm, P2_lm, Q_lm, map1x_lm, map1y_lm, map2x_lm, map2y_lm = stereo_rectify(mtx_left, dist_left,
+    R1_lm, R2_lm, P1_lm, P2_lm, Q_lm, map1x_lm, map1y_lm, map2x_lm, map2y_lm, ROI1_lm, ROI2_lm = stereo_rectify(mtx_left, dist_left,
                                                                                               mtx_middle, dist_middle,
                                                                                               R_lm, T_lm, width, height)
     # stereo_rectify function for middle and right cameras
-    R1_mr, R2_mr, P1_mr, P2_mr, Q_mr, map1x_mr, map1y_mr, map2x_mr, map2y_mr = stereo_rectify(mtx_middle, dist_middle,
+    R1_mr, R2_mr, P1_mr, P2_mr, Q_mr, map1x_mr, map1y_mr, map2x_mr, map2y_mr, ROI1_mr, ROI2_mr = stereo_rectify(mtx_middle, dist_middle,
                                                                                               mtx_right, dist_right,
                                                                                               R_mr, T_mr, width, height)
 
@@ -298,6 +298,8 @@ def calibrate_3_cameras_to_file(filename='calibration_data.pkl'):
         'map1y_lm': map1y_lm,  # rectification map y for left camera
         'map2x_lm': map2x_lm,  # rectification map x for middle camera
         'map2y_lm': map2y_lm,  # rectification map x for middle camera
+        'ROI1_lm': ROI1_lm,  # region of interest in the rectified image for left camera
+        'ROI2_lm': ROI2_lm,  # region of interest in the rectified image for middle camera
         'R1_mr': R1_mr,
         'R2_mr': R2_mr,
         'P1_mr': P1_mr,
@@ -306,7 +308,9 @@ def calibrate_3_cameras_to_file(filename='calibration_data.pkl'):
         'map1x_mr': map1x_mr,
         'map1y_mr': map1y_mr,
         'map2x_mr': map2x_mr,
-        'map2y_mr': map2y_mr
+        'map2y_mr': map2y_mr,
+        'ROI1_mr': ROI1_mr,
+        'ROI2_mr': ROI2_mr
     }
     # Save all variables in a file
     with open(filename, 'wb') as file:
