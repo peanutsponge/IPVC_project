@@ -1,11 +1,41 @@
 import cv2 as cv
 import numpy as np
+import copy
 
-def compute_disparity_map(images, suffix, mask=None):
+def display_disparity_map(disparity_map, display_range_lower_bound, display_range_upper_bound, colorize=True):
+    _disparity_map = disparity_map.copy()
+    if colorize:
+        # Color mark everything that is not in the range we want to display
+        mask_lower = np.zeros(_disparity_map.shape, dtype=np.uint8)
+        mask_lower[_disparity_map < display_range_lower_bound] = 255
+        mask_upper = np.zeros(_disparity_map.shape, dtype=np.uint8)
+        mask_upper[_disparity_map > display_range_upper_bound] = 255
+        # Color mark everything that is not in the range we want to display
+        _disparity_map[_disparity_map < display_range_lower_bound] = display_range_lower_bound
+        _disparity_map[_disparity_map > display_range_upper_bound] = display_range_upper_bound
+    # Normalize the disparity_map map to the range we want to display
+    _disparity_map = cv.normalize(_disparity_map, _disparity_map, alpha=0, beta=255, norm_type=cv.NORM_MINMAX,
+                                  dtype=cv.CV_8U)
+    if colorize:
+        # Apply the masks as a color overlay
+        _disparity_map = cv.applyColorMap(_disparity_map, cv.COLORMAP_JET)
+        _disparity_map[mask_lower == 255] = [0, 0, 0]
+        _disparity_map[mask_upper == 255] = [255, 255, 255]
+    return _disparity_map
+
+
+
+def compute_disparity_map(images, suffix, mask=None, save_path='output', display=False):
     """
     Compute the disparity map from two rectified images.
-    :param rectified_images: The two rectified images to compute the disparity map from needs to be in uint8 format
-    :return: The disparity map
+    Args:
+        display:
+        save_path:
+        images: The two rectified images to compute the disparity map from needs to be in uint8 format
+        suffix:
+        mask:
+    Returns:
+        disparity: The disparity map
     """
     im1 = images[0].copy()
     im2 = images[1].copy()
@@ -35,9 +65,24 @@ def compute_disparity_map(images, suffix, mask=None):
     wls_filter.setSigmaColor(1.5)
 
     disparity = wls_filter.filter(disparity_map_left=left_disp, left_view=im1, disparity_map_right=right_disp)
+    disparity = np.float32(np.divide(disparity, 16.0))
+    # Apply first mask to disparity map
+    disparity[mask[0] != 255] = 0
 
+    # Create display disparity map
+    _disparity_map = display_disparity_map(disparity, 1, 255)
+    # Save the disparity map
+    cv.imwrite(f'{save_path}disparity_map{suffix}.png', _disparity_map)
+    print('test')
+    # Display the disparity map
+    if display:
+        cv.imshow("Disparity", _disparity_map)
+        cv.waitKey(0)
+
+    # important conversion for the reprojectImageTo3D function
     disparity = np.float32(np.divide(disparity, 16.0))
     return disparity
+
 
 def compute_disparity_map_interactively(images, mask):
     # Default values
@@ -89,7 +134,7 @@ def compute_disparity_map_interactively(images, mask):
         use_mask = cv.getTrackbarPos("use_mask", "Disparity")
 
         # Create the stereo matcher object with the parameters we set above
-        stereo = cv.StereoSGBM_create(
+        left_matcher = cv.StereoSGBM_create(
             # Adjust these parameters by trial and error.
             numDisparities=num_disp,
             blockSize=block_size,
@@ -107,31 +152,24 @@ def compute_disparity_map_interactively(images, mask):
             im1[mask[0] != 255] = [0, 0, 0]
             im2[mask[1] != 255] = [0, 0, 0]
 
-        disparity = stereo.compute(im1, im2)
-        # Display the disparity map
-        # Convert to float32 Why?
-        disparity_map = np.float32(np.divide(disparity, 16.0))  # Why
+        disparity = left_matcher.compute(im1, im2)
 
-        if colorize:
-            # Color mark everything that is not in the range we want to display
-            mask_lower = np.zeros(disparity_map.shape, dtype=np.uint8)
-            mask_lower[disparity_map < display_range_lower_bound] = 255
-            mask_upper = np.zeros(disparity_map.shape, dtype=np.uint8)
-            mask_upper[disparity_map > display_range_upper_bound] = 255
-            # Color mark everything that is not in the range we want to display
-            disparity_map[disparity_map < display_range_lower_bound] = display_range_lower_bound
-            disparity_map[disparity_map > display_range_upper_bound] = display_range_upper_bound
-        # Normalize the disparity_map map to the range we want to display
-        disparity_map = cv.normalize(disparity_map, disparity_map, alpha=0, beta=255, norm_type=cv.NORM_MINMAX,
-                                     dtype=cv.CV_8U)
-        if colorize:
-            # Apply the masks as a color overlay
-            disparity_map = cv.applyColorMap(disparity_map, cv.COLORMAP_JET)
-            disparity_map[mask_lower == 255] = [0, 0, 0]
-            disparity_map[mask_upper == 255] = [255, 255, 255]
+        right_matcher = cv.ximgproc.createRightMatcher(left_matcher)
+        left_disp = left_matcher.compute(im1, im2)
+        right_disp = right_matcher.compute(im2, im1)
 
+        wls_filter = cv.ximgproc.createDisparityWLSFilter(left_matcher)
+        wls_filter.setLambda(8000.0)
+        wls_filter.setSigmaColor(1.5)
+
+        disparity = wls_filter.filter(disparity_map_left=left_disp, left_view=im1, disparity_map_right=right_disp)
+        disparity = np.float32(np.divide(disparity, 16.0))  # Why
+
+        # Create display disparity map
+        _disparity_map = display_disparity_map(disparity, display_range_lower_bound, display_range_upper_bound,
+                                              colorize=colorize)
         # Show the disparity map in the interactive window let the curser display the disparity value
-        cv.imshow("Disparity", disparity_map)
+        cv.imshow("Disparity", _disparity_map)
         # Print the disparity value at the current mouse position in the interactive window
         cv.setMouseCallback("Disparity", lambda event, x, y, flags, param: print(disparity[y, x]))
         # wait for 100ms

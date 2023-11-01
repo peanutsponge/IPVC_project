@@ -27,10 +27,11 @@ def normalize_global_color_type(image, T=np.float32):
     return normalized_image
 
 
-def preprocess(images, calibration_data=None, suffix=None, display=False):
+def preprocess(images, calibration_data=None, suffix=None, save_path='output', display=False):
     """
     Preprocesses the images by normalizing the global color and removing the background. Also performs stereo rectification.
     Args:
+        save_path:
         display: Whether to display the images.
         images: A list of two images, unrectified.
         calibration_data: The calibration data dictionary.
@@ -55,14 +56,17 @@ def preprocess(images, calibration_data=None, suffix=None, display=False):
                                calibration_data[f'map1y{suffix}'],
                                calibration_data[f'map2x{suffix}'], calibration_data[f'map2y{suffix}'],
                                calibration_data[f'ROI1{suffix}'], calibration_data[f'ROI2{suffix}'], suffix)
+    # Apply the mask to the images as a translucent red overlay
+    im1 = rect_images[0].copy()
+    im2 = rect_images[1].copy()
+    im1[rect_mask[0] != 255] = [0, 0, 255]
+    im2[rect_mask[1] != 255] = [0, 0, 255]
+    im1 = cv.addWeighted(im1, 0.5, rect_images[0], 0.5, 0)
+    im2 = cv.addWeighted(im2, 0.5, rect_images[1], 0.5, 0)
+    # Save the images
+    cv.imwrite(f"{save_path}_Left{suffix}.jpg", im1)
+    cv.imwrite(f"{save_path}_Right{suffix}.jpg", im2)
     if display:  # Display the images
-        # Apply the mask to the images as a translucent red overlay
-        im1 = rect_images[0].copy()
-        im2 = rect_images[1].copy()
-        im1[rect_mask[0] != 255] = [0, 0, 255]
-        im2[rect_mask[1] != 255] = [0, 0, 255]
-        im1 = cv.addWeighted(im1, 0.5, rect_images[0], 0.5, 0)
-        im2 = cv.addWeighted(im2, 0.5, rect_images[1], 0.5, 0)
         # Display the masked images
         cv.imshow(f"Left{suffix}", im1)
         cv.imshow(f"Right{suffix}", im2)
