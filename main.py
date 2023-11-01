@@ -5,7 +5,7 @@ import numpy as np
 import cv2 as cv
 from remove_background import get_foreground_mask_HSV
 from get_images import getTriplet
-from mesh import generate_point_cloud, create_mesh, visualize_point_cloud, visualize_mesh
+from mesh import generate_point_cloud, create_mesh, visualize_point_cloud, visualize_mesh,create_mesh_poisson
 from normalise_color import normalize_global_color_type
 from camera_calibration import get_calibration_data_from_file, rectify_images, calibrate_3_cameras_to_file
 from point_cloud_alignment import combine_point_clouds
@@ -69,7 +69,7 @@ print('Finished generating point clouds')
 pc_combined = combine_point_clouds(pc_RM, pc_LM)
 
 # Create mesh from the point cloud
-mesh = create_mesh(pc_combined, 'pc_combined', 8)
+mesh = create_mesh_poisson(pc_combined, 'pc_combined', 8)
 visualize_mesh(mesh)
 
 # Save mesh to file
