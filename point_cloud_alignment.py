@@ -54,7 +54,7 @@ def combine_point_clouds(source_pcd_, target_pcd_):
     source_pcd.transform(icp_transformation.transformation)
 
     # Visualize the aligned point clouds
-    o3d.visualization.draw_geometries([source_pcd, target_pcd])
+    #o3d.visualization.draw_geometries([source_pcd, target_pcd])
 
     # Save the aligned point cloud to a file
     # o3d.io.write_point_cloud("aligned_point_cloud.pcd", source_pcd)
@@ -76,17 +76,13 @@ def remove_outliers(pcd):
     return pcd_outlier_removed
 
 def merge_point_clouds(pcd1, pcd2, n=100):
+    print('number of points in pcd1: ', len(pcd1.points))
+    print('number of points in pcd2: ', len(pcd2.points))
     # Create a grid with size w x h
     x_min = min(pcd1.get_min_bound()[0], pcd2.get_min_bound()[0])
     x_max = max(pcd1.get_max_bound()[0], pcd2.get_max_bound()[0])
     y_min = min(pcd1.get_min_bound()[1], pcd2.get_min_bound()[1])
     y_max = max(pcd1.get_max_bound()[1], pcd2.get_max_bound()[1])
-
-    #print
-    print('x_min: ', x_min)
-    print('x_max: ', x_max)
-    print('y_min: ', y_min)
-    print('y_max: ', y_max)
 
     x = np.linspace(x_min, x_max, num=n)
     y = np.linspace(y_min, y_max, num=n)
@@ -102,21 +98,19 @@ def merge_point_clouds(pcd1, pcd2, n=100):
             pcd1_frame = pcd1.crop(o3d.geometry.AxisAlignedBoundingBox(min_bound=[x[i], y[j], -np.inf], max_bound=[x[i+1], y[j+1], np.inf]))
             pcd2_frame = pcd2.crop(o3d.geometry.AxisAlignedBoundingBox(min_bound=[x[i], y[j], -np.inf], max_bound=[x[i+1], y[j+1], np.inf]))
 
-
-
             #get points as numpy array
             pcd1_points = np.asarray(pcd1_frame.points)
             pcd2_points = np.asarray(pcd2_frame.points)
-            print('pcd1_points: ', pcd1_points.shape)
+
 
             # determine which pcd in this range has higher average z value
             pcd1_avg_z = np.mean(pcd1_points[:,2])
             pcd2_avg_z = np.mean(pcd2_points[:,2])
 
             if pcd1_avg_z > pcd2_avg_z:
-                merged_pcd += pcd1_points
+                merged_pcd += pcd1_frame
             else:
-                merged_pcd += pcd2_points
+                merged_pcd += pcd2_frame
 
-
+    print('number of points in merged pcd: ', len(merged_pcd.points))
     return merged_pcd
