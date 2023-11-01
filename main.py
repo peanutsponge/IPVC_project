@@ -8,17 +8,16 @@ from camera_calibration import get_calibration_data_from_file, calibrate_3_camer
 from point_cloud_alignment import combine_point_clouds
 from mesh import create_mesh_poisson, visualize_mesh
 
+# Only execute to generate the calibration data file
+#calibrate_3_cameras_to_file('calibration_data.pkl')
+
+# Load the calibration data, see camera_calibration.py for more info on the specific saved dictionary entries
+calibration_data = get_calibration_data_from_file('calibration_data.pkl')
 
 subjects = [1,2,4]
 numbers = [0,1,2,3]
 for s in subjects:
     for n in numbers:
-        # Only execute to generate the calibration data file
-        #calibrate_3_cameras_to_file('calibration_data.pkl')
-
-        # Load the calibration data, see camera_calibration.py for more info on the specific saved dictionary entries
-        calibration_data = get_calibration_data_from_file('calibration_data.pkl')
-
         # Load the images
         triplet = getTriplet(s, n)  # In final version we'll loop over these
 
@@ -32,9 +31,8 @@ for s in subjects:
         pc_RM = generate_point_cloud(images_MR, mask_MR, calibration_data, "_mr", display_disparity=False, display_point_cloud=False)
         print('Finished generating point clouds')
 
-
         # Merge the point clouds using the ICP algorithm (iterated closest points)
-        pc_combined = combine_point_clouds(pc_RM, pc_LM, display=False)
+        pc_combined = combine_point_clouds(pc_RM, pc_LM, display=True)
 
         # Create mesh from the point cloud
         mesh = create_mesh_poisson(pc_combined, 'pc_combined')

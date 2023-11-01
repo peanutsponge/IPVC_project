@@ -13,13 +13,13 @@ def compute_disparity_map(images, suffix, mask=None):
         im1[mask[0] != 255] = [0, 0, 0]
         im2[mask[1] != 255] = [0, 0, 0]
 
-    block_size = 7
-    num_disp = 48  # Needs to be divisible by 16
+    block_size = 5
+    num_disp = 64  # Needs to be divisible by 16
     left_matcher = cv.StereoSGBM_create(numDisparities=num_disp,
                                         blockSize=block_size,
                                         P1=8 * 3 * block_size ** 2,
                                         P2=32 * 3 * block_size ** 2,
-                                        disp12MaxDiff=100,
+                                        disp12MaxDiff=50,
                                         uniquenessRatio=5,
                                         speckleWindowSize=9,
                                         speckleRange=2,
@@ -34,10 +34,7 @@ def compute_disparity_map(images, suffix, mask=None):
     wls_filter.setLambda(8000.0)
     wls_filter.setSigmaColor(1.5)
 
-    if suffix == "_lm":
-        disparity = wls_filter.filter(disparity_map_left=left_disp, left_view=im2, disparity_map_right=right_disp)
-    else:
-        disparity = wls_filter.filter(disparity_map_left=left_disp, left_view=im1, disparity_map_right=right_disp)
+    disparity = wls_filter.filter(disparity_map_left=left_disp, left_view=im1, disparity_map_right=right_disp)
 
     disparity = np.float32(np.divide(disparity, 16.0))
     return disparity

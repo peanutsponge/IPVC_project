@@ -100,7 +100,7 @@ def combine_point_clouds(source_pcd_, target_pcd_, display=False):
     source_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
 
     # Set the threshold and initial transformation
-    threshold = 300  # this is the maximum distance between two correspondences in source and target
+    threshold = 100  # this is the maximum distance between two correspondences in source and target
     #trans_init = np.identity(4)
     trans_init = np.array([[1, 0.00000000, 0.0, -200],
                            [0.00000000, 1, 0.00000000, 0.00000000],
