@@ -35,17 +35,17 @@ for s in subjects:
         disparity_map_MR = compute_disparity_map(images_MR, "_mr", mask_MR, save_path, display=False)
         print('Finished computing disparity maps')
 
-        # # Generate two point clouds
-        # pc_LM = generate_point_cloud(disparity_map_LM, images_LM, calibration_data, "_lm", display=False)
-        # pc_MR = generate_point_cloud(disparity_map_MR, images_MR, calibration_data, "_mr", display=False)
-        # print('Finished generating point clouds')
-        #
-        # # Merge the point clouds using the ICP algorithm (iterated closest points)
-        # pc_combined = combine_point_clouds(pc_MR, pc_LM, display=True)
-        #
-        # # Create mesh from the point cloud
-        # mesh = create_mesh_poisson(pc_combined, 'pc_combined')
-        # visualize_mesh(mesh)
+        # Generate two point clouds
+        pc_LM = generate_point_cloud(disparity_map_LM, images_LM, calibration_data, "_lm", display=False)
+        pc_MR = generate_point_cloud(disparity_map_MR, images_MR, calibration_data, "_mr", display=False)
+        print('Finished generating point clouds')
+        
+        # Merge the point clouds using the ICP algorithm (iterated closest points)
+        pc_combined = combine_point_clouds(pc_MR, pc_LM, display=True)
+        
+        #  Create mesh from the point cloud
+        mesh = create_mesh_poisson(pc_combined, 8, 0.2)
+        visualize_mesh(mesh)
 
         # Save mesh to file
 
