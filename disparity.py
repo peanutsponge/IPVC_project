@@ -1,28 +1,88 @@
 import cv2 as cv
 import numpy as np
-import copy
 
-def display_disparity_map(disparity_map, display_range_lower_bound, display_range_upper_bound, colorize=True):
+
+def display_disparity_map(disparity_map):
+    """
+    Display the disparity map in a range and colorize it.
+    Args:
+        disparity_map: The disparity map to display
+
+    Returns:
+        _disparity_map: The disparity map with color overlay
+    """
     _disparity_map = disparity_map.copy()
-    if colorize:
-        # Color mark everything that is not in the range we want to display
-        mask_lower = np.zeros(_disparity_map.shape, dtype=np.uint8)
-        mask_lower[_disparity_map < display_range_lower_bound] = 255
-        mask_upper = np.zeros(_disparity_map.shape, dtype=np.uint8)
-        mask_upper[_disparity_map > display_range_upper_bound] = 255
-        # Color mark everything that is not in the range we want to display
-        _disparity_map[_disparity_map < display_range_lower_bound] = display_range_lower_bound
-        _disparity_map[_disparity_map > display_range_upper_bound] = display_range_upper_bound
+    # Color mark everything that is not in the range we want to display
+    mask_lower = np.zeros(_disparity_map.shape, dtype=np.uint8)
+    mask_lower[_disparity_map < 1] = 255
+    _disparity_map[_disparity_map < 1] = 1
     # Normalize the disparity_map map to the range we want to display
     _disparity_map = cv.normalize(_disparity_map, _disparity_map, alpha=0, beta=255, norm_type=cv.NORM_MINMAX,
                                   dtype=cv.CV_8U)
-    if colorize:
-        # Apply the masks as a color overlay
-        _disparity_map = cv.applyColorMap(_disparity_map, cv.COLORMAP_JET)
-        _disparity_map[mask_lower == 255] = [0, 0, 0]
-        _disparity_map[mask_upper == 255] = [255, 255, 255]
+    # Apply the masks as a color overlay
+    _disparity_map = cv.applyColorMap(_disparity_map, cv.COLORMAP_JET)
+    _disparity_map[mask_lower == 255] = [0, 0, 0]
     return _disparity_map
 
+
+def compute_disparity(images, mask, num_disp, block_size, uniquenessRatio, speckleWindowSize, speckleRange,
+                      disp12MaxDiff, mode, labda, sigma, use_mask=True):
+    """
+    Compute the disparity map from two rectified images.
+    Args:
+        images:
+        mask:
+        num_disp:
+        block_size:
+        uniquenessRatio:
+        speckleWindowSize:
+        speckleRange:
+        disp12MaxDiff:
+        mode:
+        labda:
+        sigma:
+        use_mask:
+
+    Returns:
+        disparity: The disparity map
+    """
+    im1 = images[0].copy()
+    im2 = images[1].copy()
+    if use_mask:
+        im1[mask[0] != 255] = [0, 0, 0]
+        im2[mask[1] != 255] = [0, 0, 0]
+
+    # Create the stereo matcher objects with the parameters we set above
+    left_matcher = cv.StereoSGBM_create(
+        numDisparities=num_disp,
+        blockSize=block_size,
+        uniquenessRatio=uniquenessRatio,
+        speckleWindowSize=speckleWindowSize,
+        speckleRange=speckleRange,
+        disp12MaxDiff=disp12MaxDiff,
+        P1=8 * 3 * block_size ** 2,  # 8*img_channels*block_size**2
+        P2=32 * 3 * block_size ** 2,  # 32*img_channels*block_size**2
+        mode=mode  # Use Graph Cut mode
+    )
+    right_matcher = cv.ximgproc.createRightMatcher(left_matcher)
+
+    # Create the wls filter and set the parameters
+    wls_filter = cv.ximgproc.createDisparityWLSFilter(left_matcher)
+    wls_filter.setLambda(labda)
+    wls_filter.setSigmaColor(sigma)
+
+    # Compute the disparity maps
+    left_disp = left_matcher.compute(im1, im2)
+    right_disp = right_matcher.compute(im2, im1)
+
+    # Apply the wls filter to the disparity map
+    disparity = wls_filter.filter(disparity_map_left=left_disp, left_view=im1, disparity_map_right=right_disp)
+
+    # Apply first mask to disparity map
+    disparity[mask[0] != 255] = 0
+    # important conversion for the reprojectImageTo3D function
+    disparity = np.float32(np.divide(disparity, 16.0))
+    return disparity
 
 
 def compute_disparity_map(images, suffix, mask=None, save_path='output', display=False):
@@ -37,68 +97,54 @@ def compute_disparity_map(images, suffix, mask=None, save_path='output', display
     Returns:
         disparity: The disparity map
     """
-    im1 = images[0].copy()
-    im2 = images[1].copy()
-    if mask is not None:
-        im1[mask[0] != 255] = [0, 0, 0]
-        im2[mask[1] != 255] = [0, 0, 0]
+    disparity = compute_disparity(images, mask,
+                                  block_size=5,
+                                  num_disp=64,  # Needs to be divisible by 16
+                                  disp12MaxDiff=50,
+                                  uniquenessRatio=5,
+                                  speckleWindowSize=9,
+                                  speckleRange=2,
+                                  mode=cv.STEREO_SGBM_MODE_HH,
+                                  labda=8000,
+                                  sigma=1.5)
 
-    block_size = 5
-    num_disp = 64  # Needs to be divisible by 16
-    left_matcher = cv.StereoSGBM_create(numDisparities=num_disp,
-                                        blockSize=block_size,
-                                        P1=8 * 3 * block_size ** 2,
-                                        P2=32 * 3 * block_size ** 2,
-                                        disp12MaxDiff=50,
-                                        uniquenessRatio=5,
-                                        speckleWindowSize=9,
-                                        speckleRange=2,
-                                        mode=cv.STEREO_SGBM_MODE_HH
-                                        )
-
-    right_matcher = cv.ximgproc.createRightMatcher(left_matcher)
-    left_disp = left_matcher.compute(im1, im2)
-    right_disp = right_matcher.compute(im2, im1)
-
-    wls_filter = cv.ximgproc.createDisparityWLSFilter(left_matcher)
-    wls_filter.setLambda(8000.0)
-    wls_filter.setSigmaColor(1.5)
-
-    disparity = wls_filter.filter(disparity_map_left=left_disp, left_view=im1, disparity_map_right=right_disp)
-    disparity = np.float32(np.divide(disparity, 16.0))
-    # Apply first mask to disparity map
-    disparity[mask[0] != 255] = 0
 
     # Create display disparity map
-    _disparity_map = display_disparity_map(disparity, 1, 255)
+    _disparity_map = display_disparity_map(disparity)
+
     # Save the disparity map
     cv.imwrite(f'{save_path}disparity_map{suffix}.png', _disparity_map)
-    print('test')
+
     # Display the disparity map
     if display:
         cv.imshow("Disparity", _disparity_map)
         cv.waitKey(0)
 
-    # important conversion for the reprojectImageTo3D function
-    disparity = np.float32(np.divide(disparity, 16.0))
     return disparity
 
 
 def compute_disparity_map_interactively(images, mask):
+    """
+    Compute the disparity map from two rectified images in an interactive window,
+    where the user can adjust the parameters.
+    Args:
+        images:
+        mask:
+
+    Returns:
+
+    """
     # Default values
     use_mask = True
-    colorize = True
-    display_range_lower_bound = 1  # The lower bound of the range to display the disparity map
-    display_range_upper_bound = 255  # The upper bound of the range to display the disparity map
-    block_size = 1
-    num_disp = 32  # Needs to be divisible by 16
-    uniquenessRatio = 2
-    speckleWindowSize = 20
+    block_size = 5
+    num_disp = 64  # Needs to be divisible by 16
+    uniquenessRatio = 5
+    speckleWindowSize = 9
     speckleRange = 2
-    disp12MaxDiff = 100
-    P1 = 8 * 3 * block_size ** 2  # 8*img_channels*block_size**2
-    P2 = 32 * 3 * block_size ** 2  # 32*img_channels*block_size**2
+    disp12MaxDiff = 50
     mode = cv.STEREO_SGBM_MODE_HH  # Use Graph Cut mode
+    labda = 8000
+    sigma = 150
 
     # Create an interactive window to adjust the parameters
     cv.namedWindow("Disparity", cv.WINDOW_NORMAL)
@@ -108,13 +154,10 @@ def compute_disparity_map_interactively(images, mask):
     cv.createTrackbar("speckleWindowSize", "Disparity", speckleWindowSize, 200, lambda x: x)
     cv.createTrackbar("speckleRange", "Disparity", speckleRange, 100, lambda x: x)
     cv.createTrackbar("disp12MaxDiff", "Disparity", disp12MaxDiff, 100, lambda x: x)
-    cv.createTrackbar("P1", "Disparity", P1, 1000, lambda x: x)
-    cv.createTrackbar("P2", "Disparity", P2, 1000, lambda x: x)
     cv.createTrackbar("mode", "Disparity", mode, 1, lambda x: x)
-    cv.createTrackbar("display_range_lower_bound", "Disparity", display_range_lower_bound, 1000, lambda x: x)
-    cv.createTrackbar("display_range_upper_bound", "Disparity", display_range_upper_bound, 1000, lambda x: x)
-    cv.createTrackbar("colorize", "Disparity", colorize, 1, lambda x: x)
     cv.createTrackbar("use_mask", "Disparity", use_mask, 1, lambda x: x)
+    cv.createTrackbar("lambda", "Disparity", labda, 10000, lambda x: x)
+    cv.createTrackbar("sigma", "Disparity", sigma, 1000, lambda x: x)
 
     # Wait until the user presses 'q' on the keyboard
     while cv.waitKey(1) != ord('q'):
@@ -125,56 +168,21 @@ def compute_disparity_map_interactively(images, mask):
         speckleWindowSize = cv.getTrackbarPos("speckleWindowSize", "Disparity")
         speckleRange = cv.getTrackbarPos("speckleRange", "Disparity")
         disp12MaxDiff = cv.getTrackbarPos("disp12MaxDiff", "Disparity")
-        P1 = cv.getTrackbarPos("P1", "Disparity")
-        P2 = cv.getTrackbarPos("P2", "Disparity")
         mode = cv.getTrackbarPos("mode", "Disparity")
-        display_range_lower_bound = cv.getTrackbarPos("display_range_lower_bound", "Disparity")
-        display_range_upper_bound = cv.getTrackbarPos("display_range_upper_bound", "Disparity")
-        colorize = cv.getTrackbarPos("colorize", "Disparity")
         use_mask = cv.getTrackbarPos("use_mask", "Disparity")
+        labda = cv.getTrackbarPos("lambda", "Disparity")
+        sigma = cv.getTrackbarPos("sigma", "Disparity") / 100
 
-        # Create the stereo matcher object with the parameters we set above
-        left_matcher = cv.StereoSGBM_create(
-            # Adjust these parameters by trial and error.
-            numDisparities=num_disp,
-            blockSize=block_size,
-            uniquenessRatio=uniquenessRatio,
-            speckleWindowSize=speckleWindowSize,
-            speckleRange=speckleRange,
-            disp12MaxDiff=disp12MaxDiff,
-            P1=P1,  # 8*img_channels*block_size**2
-            P2=P2,  # 32*img_channels*block_size**2
-            mode=mode  # Use Graph Cut mode
-        )
-        im1 = images[0].copy()
-        im2 = images[1].copy()
-        if use_mask:
-            im1[mask[0] != 255] = [0, 0, 0]
-            im2[mask[1] != 255] = [0, 0, 0]
-
-        disparity = left_matcher.compute(im1, im2)
-
-        right_matcher = cv.ximgproc.createRightMatcher(left_matcher)
-        left_disp = left_matcher.compute(im1, im2)
-        right_disp = right_matcher.compute(im2, im1)
-
-        wls_filter = cv.ximgproc.createDisparityWLSFilter(left_matcher)
-        wls_filter.setLambda(8000.0)
-        wls_filter.setSigmaColor(1.5)
-
-        disparity = wls_filter.filter(disparity_map_left=left_disp, left_view=im1, disparity_map_right=right_disp)
-        disparity = np.float32(np.divide(disparity, 16.0))  # Why
-
+        disparity = compute_disparity(images, mask, num_disp, block_size, uniquenessRatio, speckleWindowSize,
+                                      speckleRange,
+                                      disp12MaxDiff, mode, labda, sigma, use_mask=use_mask)
         # Create display disparity map
-        _disparity_map = display_disparity_map(disparity, display_range_lower_bound, display_range_upper_bound,
-                                              colorize=colorize)
+        _disparity_map = display_disparity_map(disparity)
         # Show the disparity map in the interactive window let the curser display the disparity value
         cv.imshow("Disparity", _disparity_map)
         # Print the disparity value at the current mouse position in the interactive window
         cv.setMouseCallback("Disparity", lambda event, x, y, flags, param: print(disparity[y, x]))
         # wait for 100ms
         cv.waitKey(100)
-
     # Close the window
     cv.destroyWindow("Disparity")
-    return disparity

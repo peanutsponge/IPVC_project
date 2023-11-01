@@ -7,7 +7,7 @@ from pre_process import preprocess
 from camera_calibration import get_calibration_data_from_file, calibrate_3_cameras_to_file
 from point_cloud_alignment import combine_point_clouds
 from mesh import create_mesh_poisson, visualize_mesh
-from disparity import compute_disparity_map
+from disparity import compute_disparity_map, compute_disparity_map_interactively
 
 # Only execute to generate the calibration data file
 # calibrate_3_cameras_to_file('calibration_data.pkl')
@@ -28,6 +28,8 @@ for s in subjects:
         images_MR, mask_MR = preprocess([triplet[1], triplet[2]], calibration_data, "_mr", save_path, display=False)
         print('Finished preprocessing images')
 
+        #compute_disparity_map_interactively(images_LM, mask_LM)
+        #compute_disparity_map_interactively(images_MR, mask_MR)
         # Compute the disparity map, note that the first image passed is what the disparity map is based on
         disparity_map_LM = compute_disparity_map(images_LM, "_lm", mask_LM, save_path, display=False)
         disparity_map_MR = compute_disparity_map(images_MR, "_mr", mask_MR, save_path, display=False)
