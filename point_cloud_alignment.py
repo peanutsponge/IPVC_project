@@ -102,6 +102,14 @@ def merge_point_clouds(pcd1, pcd2, n=100):
             pcd1_points = np.asarray(pcd1_frame.points)
             pcd2_points = np.asarray(pcd2_frame.points)
 
+            if len(pcd1_points) == 0 and len(pcd2_points) > 0:
+                merged_pcd += pcd2_frame
+                continue
+            elif len(pcd2_points) == 0 and len(pcd1_points) > 0:
+                merged_pcd += pcd1_frame
+                continue
+            elif len(pcd1_points) == 0 and len(pcd2_points) == 0:
+                continue
 
             # determine which pcd in this range has higher average z value
             pcd1_avg_z = np.mean(pcd1_points[:,2])
@@ -113,4 +121,5 @@ def merge_point_clouds(pcd1, pcd2, n=100):
                 merged_pcd += pcd2_frame
 
     print('number of points in merged pcd: ', len(merged_pcd.points))
+
     return merged_pcd

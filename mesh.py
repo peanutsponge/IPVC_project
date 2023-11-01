@@ -5,7 +5,6 @@ import cv2 as cv
 import numpy as np
 import open3d as o3d
 from remove_background import region_fill
-import matplotlib.pyplot as plt
 
 def visualize_point_cloud_file(filename):
     point_cloud = o3d.io.read_point_cloud(filename)
