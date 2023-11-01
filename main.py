@@ -7,7 +7,7 @@ import numpy as np
 
 from remove_background import get_foreground_mask, get_foreground_mask_HSV
 from get_images import getTriplet
-from mesh import generate_mesh, create_point_cloud_file
+from mesh import generate_point_cloud, create_point_cloud_file, create_mesh
 from normalise_color import normalize_global_color, normalize_global_color_type
 from camera_calibration import get_calibration_data_from_file, calibrate_3_cameras_to_file, apply_lens_correction, \
     rectify_images
@@ -71,15 +71,18 @@ if displayImagesWhileRunning:
     cv.waitKey(0)
 
 # Generate two meshes
-mesh_LM = generate_mesh(images_LM, calibration_data, "lm")
-mesh_MR = generate_mesh(images_MR, calibration_data, "mr")
+points_LM = generate_point_cloud(images_LM, calibration_data, "lm")
+# points_MR = generate_point_cloud(images_MR, calibration_data, "mr")
 
-pointCloud = np.row_stack([mesh_LM,mesh_MR])
-print("pointCloud.shape: ",pointCloud.shape)
-colors = np.ones((pointCloud.shape[0],3),dtype=np.uint8)*255
-create_point_cloud_file(pointCloud,colors, "pointCloud.ply")
+# point_cloud = np.row_stack([points_LM,points_MR])
+# print("pointCloud.shape: ",point_cloud.shape)
+# colors = np.ones((point_cloud.shape[0],3),dtype=np.uint8)*255
+# create_point_cloud_file(point_cloud,colors, "pointCloud.ply")
+
 # Merge the meshes using the ICP algorithm (iterated closest points)
 
 # Save the mesh to a file
-
+create_mesh(points_LM,"LM",3)
+# create_mesh(points_MR,"MR")
+# create_mesh(point_cloud,"total")
 # Plot the mesh

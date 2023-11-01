@@ -4,7 +4,27 @@ This file contains the functions to generate a mesh from two images.
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
+import open3d as o3d
 from mpl_toolkits.mplot3d import Axes3D
+
+def create_mesh(points,name, alpha = 2):
+    """
+    Create a mesh from a point cloud.
+    :param points: The point cloud to create the mesh from
+    :param name: The name of the mesh
+    :param alpha: The alpha value to use for the mesh
+    :return: The mesh
+    """
+    # Put points into a open3d point cloud
+    point_cloud = o3d.geometry.PointCloud()
+    point_cloud.points = o3d.utility.Vector3dVector(points)
+    # Create a mesh from the point cloud
+    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(point_cloud, alpha)
+    mesh.compute_vertex_normals()
+    # plot the mesh
+    o3d.visualization.draw_geometries([mesh])
+    # Save the mesh to a stl file
+    o3d.io.write_triangle_mesh("output/mesh_"+name+".stl", mesh)
 
 def downsample_image(image, reduce_factor):
     for i in range(0, reduce_factor):
@@ -35,19 +55,18 @@ def plot_point_cloud(point_cloud):
     plt.show()
 
 def getPoints(image1,image2,old_points1,old_points2,method):
-    match method:
-        case "SIFT":
-            matchObj = cv.SIFT_create()
-            matchMethod = cv.NORM_L1
-        case "ORB":
-            matchObj = cv.ORB_create()
-            matchMethod = cv.NORM_HAMMING
-        case "AKAZE":
-            matchObj = cv.AKAZE_create(threshold=0.0001)
-            matchMethod = cv.NORM_HAMMING
-        case _:
-            print("Invalid method")
-            return
+    if method == "SIFT":
+        matchObj = cv.SIFT_create()
+        matchMethod = cv.NORM_L1
+    elif method == "ORB":
+        matchObj = cv.ORB_create()
+        matchMethod = cv.NORM_HAMMING
+    elif method == "AKAZE":
+        matchObj = cv.AKAZE_create(threshold=0.0001)
+        matchMethod = cv.NORM_HAMMING
+    elif method == _:
+        print("Invalid method")
+        return
 
     # Get points
     kp1, des1 = matchObj.detectAndCompute(image1,None)
@@ -79,15 +98,15 @@ def filter_points(points_3d, channel=2, num_stds=2):
         filtered_points = points_3d[np.abs(points_3d[:, channel]-z_mean) < z_cutoff]
         return filtered_points
 
-def generate_mesh(rectified_images, calibration_data, camera_names):
+def generate_point_cloud(rectified_images, calibration_data, camera_names):
     """
-    Use the two images to generate a mesh.
+    Use the two images to generate a point cloud.
     The images have been stereo rectified, so the epipolar lines are horizontal.
     The images have been compensated for Non-linear lens deformation.
     https://docs.opencv.org/3.4/da/de9/tutorial_py_epipolar_geometry.html
     :param mask: The mask to use to only use the foreground
-    :param images: The two images to generate the mesh from
-    :return: The mesh
+    :param images: The two images to generate the point cloud from
+    :return: The point cloud
     """
     # Get points from the matches
     points1 = []
@@ -124,7 +143,7 @@ def generate_mesh(rectified_images, calibration_data, camera_names):
     # Create a point cloud file
     colors = np.ones((points_3d.shape[0],3),dtype=np.uint8)*255
     create_point_cloud_file(points_3d,colors,"point_cloud_"+camera_names+".ply")
-    plot_point_cloud(points_3d)
+    # plot_point_cloud(points_3d)
     # Return the mesh
     #for now just return the point cloud
     return points_3d

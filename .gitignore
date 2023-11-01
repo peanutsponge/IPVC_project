@@ -3,6 +3,7 @@
 __pycache__/
 
 # Ignore the output files
+output/
 point_cloud_lm.ply
 point_cloud_mr.ply
 point_cloud.ply
