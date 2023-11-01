@@ -1,27 +1,30 @@
 import open3d as o3d
 import numpy as np
+import simpleicp as sicp
 
 
 def combine_point_clouds(source_pcd_, target_pcd_):
+    source_pcd_ = source_pcd_.voxel_down_sample(voxel_size=5)
+    target_pcd_ = target_pcd_.voxel_down_sample(voxel_size=5)
+
     # remove outliers
     source_pcd = remove_outliers(source_pcd_)
     target_pcd = remove_outliers(target_pcd_)
 
     # downsample a deep copy of the point cloud
-    # source_pcd = source_pcd_.voxel_down_sample(voxel_size=5)
-    # target_pcd = target_pcd_.voxel_down_sample(voxel_size=5)
+
 
     # Compute normals for the target point cloud
     target_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
     source_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
 
     # Set the threshold and initial transformation
-    threshold = 0.1  # this is the maximum distance between two correspondences in source and target
+    threshold = 20000  # this is the maximum distance between two correspondences in source and target
     trans_init = np.identity(4)
-    #trans_init = np.array([[1, 0.00000000, 0.0, 200],
-                           # [0.00000000, 1, 0.00000000, 0.00000000],
-                           # [0, 0.00000000, 1, 0.00000000],
-                           # [0.00000000, 0.00000000, 0.00000000, 1.00000000]])
+    #trans_init = np.array([[1, 0.00000000, 0.0, -200],
+    #                      [0.00000000, 1, 0.00000000, 0.00000000],
+    #                      [0, 0.00000000, 1, 0.00000000],
+    #                      [0.00000000, 0.00000000, 0.00000000, 1.00000000]])
 
     # Apply ICP registration to align the source point cloud with the target point cloud
     icp_transformation = o3d.pipelines.registration.registration_icp(
@@ -29,10 +32,10 @@ def combine_point_clouds(source_pcd_, target_pcd_):
         target_pcd,
         threshold,
         trans_init,
-        o3d.pipelines.registration.TransformationEstimationPointToPlane(),
+        o3d.pipelines.registration.TransformationEstimationPointToPoint(),
         criteria=o3d.pipelines.registration.ICPConvergenceCriteria(
-            relative_fitness=0.2,
-            relative_rmse=0.00001,
+            relative_fitness=0.00001,
+            relative_rmse=0.0000001,
             max_iteration=3000  # Replace with the desired number of iterations
         )
     )
@@ -63,3 +66,32 @@ def remove_outliers(pcd):
     cl, ind = pcd.remove_statistical_outlier(nb_neighbors=35, std_ratio=1.0)
     pcd_outlier_removed = pcd.select_by_index(ind)
     return pcd_outlier_removed
+
+def pc_to_pc(pc):
+
+    # Extract the point coordinates from the Open3D point cloud
+    open3d_points = pc.points  # Assuming this gives you a Nx3 numpy array
+
+    # Create a SimpleICP PointCloud object and populate it with the extracted points
+    simpleicp_pointcloud = sicp.PointCloud(open3d_points, columns=["x", "y", "z"])
+    #simpleicp_pointcloud.points = open3d_points
+    return simpleicp_pointcloud
+
+def combine_point_clouds2(pc_fix_, pc_mov_):
+    pc_fix = pc_to_pc(pc_fix_)
+    pc_mov = pc_to_pc(pc_mov_)
+
+    # Create point cloud objects
+    #pc_fix = sicp.PointCloud(X_fix, columns=["x", "y", "z"])
+    #pc_mov = sicp.PointCloud(X_mov, columns=["x", "y", "z"])
+
+    # Create simpleICP object, add point clouds, and run algorithm!
+    simple_icp = sicp.SimpleICP()
+    simple_icp.add_point_clouds(pc_fix, pc_mov)
+    H, X_mov_transformed, rigid_body_transformation_params, distance_residuals = simple_icp.run(max_overlap_distance=1)
+
+    point_cloud_1 = pc_fix_
+
+    point_cloud_2 = o3d.geometry.PointCloud()
+    point_cloud_2.points = o3d.utility.Vector3dVector(X_mov_transformed)
+    return point_cloud_1 + point_cloud_2

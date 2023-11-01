@@ -8,7 +8,7 @@ from get_images import getTriplet
 from mesh import generate_point_cloud, create_mesh, visualize_point_cloud, visualize_mesh
 from normalise_color import normalize_global_color_type
 from camera_calibration import get_calibration_data_from_file, rectify_images, calibrate_3_cameras_to_file
-from point_cloud_alignment import combine_point_clouds
+from point_cloud_alignment import combine_point_clouds, combine_point_clouds2
 
 
 def preprocess(images, suffix=None):
@@ -63,13 +63,13 @@ images_MR, mask_MR = preprocess([triplet[1], triplet[2]], "_mr")
 pc_LM = generate_point_cloud(images_LM, mask_LM, calibration_data, "_lm")
 pc_RM = generate_point_cloud(images_MR, mask_MR, calibration_data, "_mr")
 print('Finished generating point clouds')
-#visualize_point_cloud(pc_LM)
+visualize_point_cloud(pc_LM)
 
 # Merge the point clouds using the ICP algorithm (iterated closest points)
 pc_combined = combine_point_clouds(pc_RM, pc_LM)
 
 # Create mesh from the point cloud
-mesh = create_mesh(pc_combined, 'pc_combined', 5)
+mesh = create_mesh(pc_combined, 'pc_combined', 8)
 visualize_mesh(mesh)
 
 # Save mesh to file

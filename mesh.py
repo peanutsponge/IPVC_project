@@ -3,7 +3,6 @@ This file contains the functions to generate a mesh from two images.
 """
 import cv2 as cv
 import numpy as np
-import matplotlib.pyplot as plt
 import open3d as o3d
 from remove_background import region_fill
 
@@ -105,7 +104,7 @@ def compute_disparity_map(images, suffix, mask=None):
         im1[mask[0] != 255] = [0, 0, 0]
         im2[mask[1] != 255] = [0, 0, 0]
 
-    block_size = 5
+    block_size = 7
     num_disp = 48  # Needs to be divisible by 16
     left_matcher = cv.StereoSGBM_create(numDisparities=num_disp,
                                         blockSize=block_size,
@@ -263,7 +262,7 @@ def generate_point_cloud(rectified_images, foreground_masks, calibration_data, s
 
     Q = np.float32([[1, 0, 0, 0],
                    [0, -1, 0, 0],
-                   [0, 0, focal_length * 0.05, 0],
+                   [0, 0, focal_length * 0.07, 0],
                    [0, 0, 0, 1]])
     #Q = calibration_data[f'Q{suffix}'] # alternative, but sucks
 
