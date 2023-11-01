@@ -262,7 +262,7 @@ def generate_point_cloud(rectified_images, foreground_masks, calibration_data, s
 
     Q = np.float32([[1, 0, 0, 0],
                    [0, -1, 0, 0],
-                   [0, 0, focal_length * 0.07, 0],
+                   [0, 0, focal_length * 0.1, 0],
                    [0, 0, 0, 1]])
     #Q = calibration_data[f'Q{suffix}'] # alternative, but sucks
 
