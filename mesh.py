@@ -20,7 +20,8 @@ def visualize_point_cloud_file(filename):
 
     # Customize visualization settings
     vis.get_render_option().point_size = 1.0  # Adjust point size
-    vis.get_render_option().background_color = [0, 0, 0]  # Set background color to black
+    #set bg to white
+    vis.get_render_option().background_color = [1, 1, 1]
 
     # Set the camera viewpoint (optional)
     view_control = vis.get_view_control()
@@ -41,7 +42,7 @@ def visualize_point_cloud(pcd):
 
     # Customize visualization settings
     vis.get_render_option().point_size = 1.0  # Adjust point size
-    vis.get_render_option().background_color = [0, 0, 0]  # Set background color to black
+    vis.get_render_option().background_color = [1, 1, 1]  # Set background color to black
 
     # Set the camera viewpoint (optional)
     view_control = vis.get_view_control()
