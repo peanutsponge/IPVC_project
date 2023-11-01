@@ -8,7 +8,6 @@ import open3d as o3d
 
 def visualize_point_cloud(filename):
     point_cloud = o3d.io.read_point_cloud(filename)
-    # o3d.visualization.draw_geometries([point_cloud])
 
     # Create a visualizer object
     vis = o3d.visualization.Visualizer()
@@ -227,17 +226,8 @@ def generate_point_cloud(rectified_images, foreground_masks, calibration_data, s
         show_disparity_map(disparity_map, 1, 255)
         cv.waitKey(0)
 
-    # Post processing of the disparity map
-    # # A median filter to remove outliers
-    # disparity_map = cv.medianBlur(disparity_map, 5)
-
-    if False:  # If you want to see the disparity map, set this to True
-        show_disparity_map(disparity_map, 1, 255)
-        cv.waitKey(0)
-
     # important conversion for the reprojectImageTo3D function
     disparity_map = np.float32(np.divide(disparity_map, 16.0))
-    print(calibration_data[f'Q{suffix}'])
 
     if suffix == "_lm":
         focal_length = (calibration_data['mtx_left'][0][0] + calibration_data['mtx_right'][1][1]) / 2
@@ -254,8 +244,8 @@ def generate_point_cloud(rectified_images, foreground_masks, calibration_data, s
     # Use the disparity map to find the point cloud
     point_cloud = cv.reprojectImageTo3D(disparity_map, Q, handleMissingValues=True)
     colors = cv.cvtColor(rectified_images[0], cv.COLOR_BGR2RGB)
-    mask_map = disparity_map > disparity_map.min()  # possibly the same as disparity_map_invalid
 
+    mask_map = disparity_map > disparity_map.min()  # possibly the same as disparity_map_invalid
     point_cloud = point_cloud[mask_map]
     colors = colors[mask_map]
 
@@ -269,69 +259,10 @@ def generate_point_cloud(rectified_images, foreground_masks, calibration_data, s
     point_cloud = point_cloud[foreground_points]
     colors = colors[foreground_points]
 
-    # Filter the points that are outside 2 standard deviations
-    mean = np.mean(point_cloud, axis=0)
-    std = np.std(point_cloud, axis=0) * [1.4, 1.4, 4]  # x y z
-    filtered_points = np.all(np.sqrt((point_cloud - mean) ** 2) / std < 1, axis=1)
-    point_cloud = point_cloud[filtered_points]
-    colors = colors[filtered_points]
-
-
-
-    # Filter out outliers
-    # filtered_points = filter_regional(point_cloud, n_x=12, n_y=30, threshold=0.5)
-    # point_cloud = point_cloud[filtered_points]
-    # colors = colors[filtered_points]
-
     point_cloud = normalise_point_cloud(point_cloud)
 
-    if suffix == "_lm":
-        # Filter out the right side of the point cloud
-        filtered_points = point_cloud[:, 0] < np.std(point_cloud[:, 0])
-    elif suffix == "_mr":
-        # Filter out the left side of the point cloud
-        filtered_points = point_cloud[:, 0] > -np.std(point_cloud[:, 0])
-    point_cloud = point_cloud[filtered_points]
-    colors = colors[filtered_points]
-
-
-
     # Create a point cloud file
-    create_point_cloud_file(point_cloud, colors, "point_cloud.ply")
+    create_point_cloud_file(point_cloud, colors, f"output/point_cloud{suffix}.ply")
 
     # Visualize the point cloud, comment this out if you don't want to see the point cloud
-    visualize_point_cloud("point_cloud.ply")
-
-    return point_cloud
-
-
-def filter_regional(point_cloud, n_x=9, n_y=15, threshold=1.5):
-    # Divide the point cloud into 25 parts (x and y) and filter out the outliers (z) in each part
-    # Get the bounds of the point cloud
-    min_x = np.min(point_cloud[:, 0])
-    max_x = np.max(point_cloud[:, 0])
-    min_y = np.min(point_cloud[:, 1])
-    max_y = np.max(point_cloud[:, 1])
-
-    point_cloud_total = np.array([]).reshape(0, 3)
-    for i in range(n_x):
-        # get bounds of the part
-        x_min_region = min_x + (max_x - min_x) / n_x * i
-        x_max_region = min_x + (max_x - min_x) / n_x * (i + 1)
-        for j in range(n_y):
-            # get bounds of the part
-            y_min_region = min_y + (max_y - min_y) / n_y * j
-            y_max_region = min_y + (max_y - min_y) / n_y * (j + 1)
-            # Get points in the part
-            regional_point_cloud = point_cloud[(point_cloud[:, 0] > x_min_region) & (point_cloud[:, 0] < x_max_region) &
-                                               (point_cloud[:, 1] > y_min_region) & (point_cloud[:, 1] < y_max_region)]
-            # Filter out the outliers in the z direction
-            mean = np.mean(regional_point_cloud, axis=0)
-            std = np.std(regional_point_cloud, axis=0) * [np.inf, np.inf, 1]  # x y z
-            filtered_points_region = np.all(np.sqrt((regional_point_cloud - mean) ** 2) / std < threshold, axis=1)
-            regional_point_cloud = regional_point_cloud[filtered_points_region]
-            # Add the regional_point_cloud points to the total point cloud keeping the order
-            point_cloud_total = np.vstack((point_cloud_total, regional_point_cloud))
-    # Get indices of the points that are not filtered out in the total point cloud a point is x,y,z
-    filtered_points_total = np.all(np.isin(point_cloud, point_cloud_total), axis=1)
-    return filtered_points_total
+    # visualize_point_cloud("point_cloud.ply")

@@ -8,7 +8,8 @@ from get_images import getTriplet
 from point_cloud import generate_point_cloud
 from normalise_color import normalize_global_color_type
 from camera_calibration import get_calibration_data_from_file, rectify_images, calibrate_3_cameras_to_file
-from mesh import create_mesh, merge_point_clouds
+from mesh import create_mesh
+from icp import merge_point_clouds
 
 
 def preprocess(images, suffix=None):
@@ -59,15 +60,13 @@ images_MR, mask_MR = preprocess([triplet[1], triplet[2]], "_mr")
 # cv.imshow("Right", mask_MR[1])
 # cv.waitKey(0)
 
-# TODO: returns two point clouds, merge them and then create mesh from the combined point cloud
-
 # Generate two point clouds from the images
-point_cloud_LM = generate_point_cloud(images_LM, mask_LM, calibration_data, "_lm")
+# generate_point_cloud(images_LM, mask_LM, calibration_data, "_lm")
 print('HOI')
-point_cloud_MR = generate_point_cloud(images_MR, mask_MR, calibration_data, "_mr")
+# generate_point_cloud(images_MR, mask_MR, calibration_data, "_mr")
 
 # Merge the point clouds using the ICP algorithm (iterated closest points)
-point_cloud = merge_point_clouds(point_cloud_LM, point_cloud_MR)
+point_cloud = merge_point_clouds('output/point_cloud_lm.ply', 'output/point_cloud_mr.ply')
 
 # Create the mesh from the point cloud
 # create_mesh(point_cloud_LM, 'final', alpha=0.02)
