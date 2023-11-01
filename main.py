@@ -69,7 +69,7 @@ print('Finished generating point clouds')
 pc_combined = combine_point_clouds(pc_RM, pc_LM)
 
 # Create mesh from the point cloud
-mesh = create_mesh_poisson(pc_combined, 'pc_combined', 8)
+mesh = create_mesh_poisson(pc_combined, 'pc_combined')
 visualize_mesh(mesh)
 
 # Save mesh to file
