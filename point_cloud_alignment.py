@@ -19,20 +19,8 @@ def remove_outliers(pcd):
 
 
 def merge_point_clouds(pcd1, pcd2, n=100):
-    """
-    Merges two point clouds by taking the average z value of each point in a grid and
-    then choosing the point cloud with the highest average z value.
-    Args:
-        pcd1:
-        pcd2:
-        n:
+    n=150
 
-    Returns:
-
-    """
-    n = 200
-    print('number of points in pcd1: ', len(pcd1.points))
-    print('number of points in pcd2: ', len(pcd2.points))
     # Create a grid with size w x h
     x_min = min(pcd1.get_min_bound()[0], pcd2.get_min_bound()[0])
     x_max = max(pcd1.get_max_bound()[0], pcd2.get_max_bound()[0])
@@ -44,18 +32,16 @@ def merge_point_clouds(pcd1, pcd2, n=100):
 
     merged_pcd = o3d.geometry.PointCloud()
 
-    for i in range(n - 1):
-        for j in range(n - 1):
-            # xframe is between x[i] and x[i+1]
-            # yframe is between y[j] and y[j+1]
+    for i in range(n-1):
+        for j in range(n-1):
+            #xframe is between x[i] and x[i+1]
+            #yframe is between y[j] and y[j+1]
 
-            # get points in range
-            pcd1_frame = pcd1.crop(o3d.geometry.AxisAlignedBoundingBox(min_bound=[x[i], y[j], -np.inf],
-                                                                       max_bound=[x[i + 1], y[j + 1], np.inf]))
-            pcd2_frame = pcd2.crop(o3d.geometry.AxisAlignedBoundingBox(min_bound=[x[i], y[j], -np.inf],
-                                                                       max_bound=[x[i + 1], y[j + 1], np.inf]))
+            #get points in range
+            pcd1_frame = pcd1.crop(o3d.geometry.AxisAlignedBoundingBox(min_bound=[x[i], y[j], -np.inf], max_bound=[x[i+1], y[j+1], np.inf]))
+            pcd2_frame = pcd2.crop(o3d.geometry.AxisAlignedBoundingBox(min_bound=[x[i], y[j], -np.inf], max_bound=[x[i+1], y[j+1], np.inf]))
 
-            # get points as numpy array
+            #get points as numpy array
             pcd1_points = np.asarray(pcd1_frame.points)
             pcd2_points = np.asarray(pcd2_frame.points)
 
@@ -69,32 +55,31 @@ def merge_point_clouds(pcd1, pcd2, n=100):
                 continue
 
             # determine which pcd in this range has higher average z value
-            pcd1_avg_z = np.mean(pcd1_points[:, 2])
-            pcd2_avg_z = np.mean(pcd2_points[:, 2])
+            pcd1_avg_z = np.mean(pcd1_points[:,2])
+            pcd2_avg_z = np.mean(pcd2_points[:,2])
 
             if pcd1_avg_z > pcd2_avg_z:
                 merged_pcd += pcd1_frame
             else:
                 merged_pcd += pcd2_frame
 
-    print('number of points in merged pcd: ', len(merged_pcd.points))
     return merged_pcd
 
 
 def remove_side(pcd, side, factor):
-    # factor betwen 0-1
+    #factor betwen 0-1
     x_min = pcd.get_min_bound()[0]
     x_max = pcd.get_max_bound()[0]
     xrange = x_max - x_min
 
     if side == 'left':
-        # get xrange
-        x_min = x_min + factor * xrange
-        pcd = pcd.crop(o3d.geometry.AxisAlignedBoundingBox(min_bound=[x_min, -np.inf, -np.inf],
-                                                           max_bound=[np.inf, np.inf, np.inf]))
+        #get xrange
+        x_min = x_min + factor*xrange
+        pcd = pcd.crop(o3d.geometry.AxisAlignedBoundingBox(min_bound=[x_min, -np.inf, -np.inf], max_bound=[np.inf, np.inf, np.inf]))
     elif side == 'right':
-        x_max = x_max - factor * xrange
-
+        x_max = x_max - factor*xrange
+        pcd = pcd.crop(o3d.geometry.AxisAlignedBoundingBox(min_bound=[-np.inf, -np.inf, -np.inf],
+                                                           max_bound=[x_max, np.inf, np.inf]))
     return pcd
 
 
@@ -107,14 +92,20 @@ def combine_point_clouds(source_pcd_, target_pcd_, display=False):
     source_pcd = remove_outliers(source_pcd_)
     target_pcd = remove_outliers(target_pcd_)
 
+    #source_pcd = remove_side(source_pcd, 'left', 0.2)
+    #target_pcd = remove_side(target_pcd, 'right', 0.2)
 
     # Compute normals for the target point cloud
     target_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
     source_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
 
     # Set the threshold and initial transformation
-    threshold = 2000  # this is the maximum distance between two correspondences in source and target
-    trans_init = np.identity(4)
+    threshold = 100  # this is the maximum distance between two correspondences in source and target
+    #trans_init = np.identity(4)
+    trans_init = np.array([[1, 0.00000000, 0.0, -200],
+                           [0.00000000, 1, 0.00000000, 0.00000000],
+                           [0, 0.00000000, 1, 0.00000000],
+                           [0.00000000, 0.00000000, 0.00000000, 1.00000000]])
 
     # Apply ICP registration to align the source point cloud with the target point cloud
     icp_transformation = o3d.pipelines.registration.registration_icp(
@@ -133,8 +124,6 @@ def combine_point_clouds(source_pcd_, target_pcd_, display=False):
     evaluation = o3d.pipelines.registration.evaluate_registration(source_pcd, target_pcd, threshold,
                                                                   icp_transformation.transformation)
     print('Mesh evaluation: ', evaluation)
-
-    print('Transformation matrix: ', icp_transformation.transformation)
 
     # Apply the obtained transformation to the source point cloud
     source_pcd.transform(icp_transformation.transformation)
