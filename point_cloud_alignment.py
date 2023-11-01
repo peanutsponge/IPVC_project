@@ -8,8 +8,8 @@ def combine_point_clouds(source_pcd_, target_pcd_):
     # See code from Damian
 
     #TODO: first remove outliers, then downsample?
-    source_pcd_ = source_pcd_.voxel_down_sample(voxel_size=5)
-    target_pcd_ = target_pcd_.voxel_down_sample(voxel_size=5)
+    #source_pcd_ = source_pcd_.voxel_down_sample(voxel_size=5)
+    #target_pcd_ = target_pcd_.voxel_down_sample(voxel_size=5)
 
     # remove outliers
     source_pcd = remove_outliers(source_pcd_)
@@ -54,7 +54,7 @@ def combine_point_clouds(source_pcd_, target_pcd_):
     source_pcd.transform(icp_transformation.transformation)
 
     # Visualize the aligned point clouds
-    #o3d.visualization.draw_geometries([source_pcd, target_pcd])
+    o3d.visualization.draw_geometries([source_pcd, target_pcd])
 
     # Save the aligned point cloud to a file
     # o3d.io.write_point_cloud("aligned_point_cloud.pcd", source_pcd)
@@ -76,6 +76,7 @@ def remove_outliers(pcd):
     return pcd_outlier_removed
 
 def merge_point_clouds(pcd1, pcd2, n=100):
+    n=200
     print('number of points in pcd1: ', len(pcd1.points))
     print('number of points in pcd2: ', len(pcd2.points))
     # Create a grid with size w x h
@@ -91,8 +92,8 @@ def merge_point_clouds(pcd1, pcd2, n=100):
 
     for i in range(n-1):
         for j in range(n-1):
-            #xrange is between x[i] and x[i+1]
-            #yrange is between y[j] and y[j+1]
+            #xframe is between x[i] and x[i+1]
+            #yframe is between y[j] and y[j+1]
 
             #get points in range
             pcd1_frame = pcd1.crop(o3d.geometry.AxisAlignedBoundingBox(min_bound=[x[i], y[j], -np.inf], max_bound=[x[i+1], y[j+1], np.inf]))
@@ -123,3 +124,20 @@ def merge_point_clouds(pcd1, pcd2, n=100):
     print('number of points in merged pcd: ', len(merged_pcd.points))
 
     return merged_pcd
+
+def remove_side(pcd, side,factor):
+    #factor betwen 0-1 
+    x_min = pcd.get_min_bound()[0]
+    x_max = pcd.get_max_bound()[0]
+    xrange = x_max - x_min
+
+
+
+    if side == 'left':
+        #get xrange
+        x_min = x_min + factor*xrange
+        pcd = pcd.crop(o3d.geometry.AxisAlignedBoundingBox(min_bound=[x_min, -np.inf, -np.inf], max_bound=[np.inf, np.inf, np.inf]))
+    elif side == 'right':
+        x_max = x_max - factor*xrange
+
+    return pcd
