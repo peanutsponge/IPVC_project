@@ -18,61 +18,7 @@ def region_fill(image, seed_point, color):
     """
     mask = np.zeros((image.shape[0] + 2, image.shape[1] + 2), np.uint8)
     cv.floodFill(image, mask, seed_point, color)
-    return image
 
-
-#! Do not use, Doesn't work with normalized images
-def get_foreground_mask(image,threshold = 110, smoothing=2):
-    """
-    Get the foreground mask for an image. Doesn't work with normalized images
-    :param image: image to get the mask for
-    :param threshold: threshold value the higher, the less is removed
-    :param smoothing: smoothing iterations
-    :return: foreground mask
-    """
-    # Threshold image
-    image = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
-    _, mask = cv.threshold(image, threshold, T_max, cv.THRESH_BINARY)
-    # Remove some left over background artifacts
-    mask = cv.morphologyEx(mask, cv.MORPH_DILATE, None, iterations=4)
-    mask = cv.bitwise_not(mask)
-    # Closing
-    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (50, 50))
-    mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel, iterations=smoothing)
-    # Swap to an inverse mask
-    holes = cv.bitwise_not(mask)
-    # Isolate the holes (By flooding the background with white)
-    region_fill(holes, (image.shape[0] - 1, 0), 1)
-    mask = cv.bitwise_or(mask, holes)
-    return mask
-
-#! Do not use, Doesn't work with normalized images
-def get_foreground_mask_V2(image,channel = 0):
-    """
-    Get the foreground mask for an image. It uses Otsu thresholding so no threshold value has to be set
-    :param image: image to get the mask for
-    :return: foreground mask
-    """
-    # Filter the image with gaussian
-    image = cv.GaussianBlur(image, (5, 5), 0)
-    # Grayscale using one channel
-    image = image[:,:,channel]
-    # Otsu thresholding
-    _, mask = cv.threshold(image, 0, T_max, cv.THRESH_BINARY + cv.THRESH_OTSU)
-    # Swap 
-    mask = cv.bitwise_not(mask)
-    # Closing
-    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (2, 2))
-    mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel, iterations=3)
-    # Fill holes
-    holes = cv.bitwise_not(mask)
-    region_fill(holes, (image.shape[0] - 1, 0), 1)
-    mask = cv.bitwise_or(mask, holes)
-    # clean up
-    mask = cv.morphologyEx(mask, cv.MORPH_ERODE, None, iterations=1)
-    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (6, 6))
-    mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel, iterations=2)
-    return mask
 
 # Settings for when normalized on RGB: s(-2.35) doesn't matter, h_min = 0.6,
 def get_foreground_mask_HSV(image, cleaning_amount=9, v_min=0, s_min=127, h_min=40, v_max=255, s_max=255, h_max=200):
@@ -102,7 +48,9 @@ def get_foreground_mask_HSV(image, cleaning_amount=9, v_min=0, s_min=127, h_min=
     mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel, iterations=3)
     # Fill holes
     holes = cv.bitwise_not(mask)
-    region_fill(holes, (image.shape[0] - 1, 0), 1)
+    region_fill(holes, (0, 0), 1)
+    region_fill(holes, (round(holes.shape[0]*.7), 0), 1)
+    region_fill(holes, (round(holes.shape[0] * .7), round(holes.shape[1] * .7)), 1)
     mask = cv.bitwise_or(mask, holes)
     # Clean up outside
     mask = cv.morphologyEx(mask, cv.MORPH_OPEN, None, iterations=cleaning_amount)

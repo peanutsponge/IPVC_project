@@ -40,29 +40,31 @@ def preprocess(images, calibration_data=None, suffix=None, save_path='output', d
     Returns:
 
     """
-    mask = np.array([None, None])
-    for i in [0, 1]:
-        # Make Foreground mask
-        mask[i] = get_foreground_mask_HSV(images[i])
-
-        # global colour normalization to make sure that the so-called ‘Constant Brightness Assumption’ holds true.
-        images[i] = normalize_global_color_type(images[i])
     # Stereo rectification to facilitate the dense stereo matching, also performs non-linear distortion correction!
-    rect_images = rectify_images(images[0], images[1], calibration_data[f'map1x{suffix}'],
+    images = rectify_images(images[0], images[1], calibration_data[f'map1x{suffix}'],
                                  calibration_data[f'map1y{suffix}'],
                                  calibration_data[f'map2x{suffix}'], calibration_data[f'map2y{suffix}'],
                                  calibration_data[f'ROI1{suffix}'], calibration_data[f'ROI2{suffix}'], suffix)
-    rect_mask = rectify_images(mask[0], mask[1], calibration_data[f'map1x{suffix}'],
-                               calibration_data[f'map1y{suffix}'],
-                               calibration_data[f'map2x{suffix}'], calibration_data[f'map2y{suffix}'],
-                               calibration_data[f'ROI1{suffix}'], calibration_data[f'ROI2{suffix}'], suffix)
+    mask = np.ones_like(images)[:, :, :, 0] * 255
+    for i in [0, 1]:
+        mask[i] = get_foreground_mask_HSV(images[i])
+        # global colour normalization to make sure that the so-called ‘Constant Brightness Assumption’ holds true.
+        images[i] = normalize_global_color_type(images[i])
+
+        # Make Foreground mask
+        # mask[i] = get_foreground_mask_HSV(images[i], cleaning_amount=0,
+        #                                   v_min=0, v_max=255,  # 60
+        #                                   s_min=0, s_max=255,
+        #                                   h_min=0, h_max=255)#170
+
     # Apply the mask to the images as a translucent red overlay
-    im1 = rect_images[0].copy()
-    im2 = rect_images[1].copy()
-    im1[rect_mask[0] != 255] = [0, 0, 255]
-    im2[rect_mask[1] != 255] = [0, 0, 255]
-    im1 = cv.addWeighted(im1, 0.5, rect_images[0], 0.5, 0)
-    im2 = cv.addWeighted(im2, 0.5, rect_images[1], 0.5, 0)
+    im1 = images[0].copy()
+    im2 = images[1].copy()
+
+    im1[mask[0] != 255] = [0, 0, 255]
+    im2[mask[1] != 255] = [0, 0, 255]
+    im1 = cv.addWeighted(im1, 0.5, images[0], 0.5, 0)
+    im2 = cv.addWeighted(im2, 0.5, images[1], 0.5, 0)
     # Save the images
     cv.imwrite(f"{save_path}_Left{suffix}.jpg", im1)
     cv.imwrite(f"{save_path}_Right{suffix}.jpg", im2)
@@ -71,4 +73,4 @@ def preprocess(images, calibration_data=None, suffix=None, save_path='output', d
         cv.imshow(f"Left{suffix}", im1)
         cv.imshow(f"Right{suffix}", im2)
         cv.waitKey(0)
-    return rect_images, rect_mask
+    return images, mask
