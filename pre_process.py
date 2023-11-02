@@ -19,12 +19,20 @@ def normalize_global_color_type(image, T=np.float32):
     std = np.std(image, axis=(0, 1))
 
     # Normalize the image.
-    normalized_image = ((image - mean) / std).astype(T)
+    image = ((image - mean) / std).astype(T)
 
     # convert to 0-255, CV_8U
-    normalized_image = cv.normalize(normalized_image, normalized_image, alpha=0, beta=255, norm_type=cv.NORM_MINMAX,
+    image = cv.normalize(image, image, alpha=0, beta=255, norm_type=cv.NORM_MINMAX,
                                     dtype=cv.CV_8U)
-    return normalized_image
+    # convert to hsv
+    image = cv.cvtColor(image, cv.COLOR_BGR2HSV)
+    # do histogram equalization on the value channel
+    image[:, :, 2] = cv.equalizeHist(image[:, :, 2])
+    # convert back to bgr
+    image = cv.cvtColor(image, cv.COLOR_HSV2BGR)
+
+
+    return image
 
 
 def preprocess(images, calibration_data=None, suffix=None, save_path='output', display=False):
@@ -51,16 +59,14 @@ def preprocess(images, calibration_data=None, suffix=None, save_path='output', d
         # global colour normalization to make sure that the so-called ‘Constant Brightness Assumption’ holds true.
         images[i] = normalize_global_color_type(images[i])
 
-        #get_foreground_mask_HSV_interactively(images[i])
-
+        # get_foreground_mask_HSV_interactively(images[i])
         # Make Foreground mask
         mask[i] = get_foreground_mask_HSV(images[i],
-                                          cleaning_amount=0, closing_amount=5, fill_holes=True,
-                                          v_min=50, v_max=255,  # 60
+                                          cleaning_amount=50, closing_amount=5, fill_holes=True,
+                                          v_min=40, v_max=255,  # 60
                                           s_min=0, s_max=50,
                                           h_min=100, h_max=255,
                                           hue_shift=200)  # 170
-
 
     # Apply the mask to the images as a translucent red overlay
     im1 = images[0].copy()
@@ -71,8 +77,8 @@ def preprocess(images, calibration_data=None, suffix=None, save_path='output', d
     im1 = cv.addWeighted(im1, 0.5, images[0], 0.5, 0)
     im2 = cv.addWeighted(im2, 0.5, images[1], 0.5, 0)
     # Save the images
-    cv.imwrite(f"{save_path}_Left{suffix}.jpg", im1)
-    cv.imwrite(f"{save_path}_Right{suffix}.jpg", im2)
+    cv.imwrite(f"{save_path}{suffix}_Left.jpg", im1)
+    cv.imwrite(f"{save_path}{suffix}_Right.jpg", im2)
     if display:  # Display the images
         # Display the masked images
         cv.imshow(f"Left{suffix}", im1)

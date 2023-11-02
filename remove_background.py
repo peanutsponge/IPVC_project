@@ -59,6 +59,20 @@ def get_foreground_mask_HSV(image, closing_amount = 3, cleaning_amount=9, v_min=
         mask = cv.bitwise_or(mask, holes)
     # Clean up outside
     mask = cv.morphologyEx(mask, cv.MORPH_OPEN, None, iterations=cleaning_amount)
+
+    # invert mask
+    # mask[mask != 255] = 2
+    # mask[mask == 255] = 0
+    # mask[mask == 2] = 255
+
+    # # Only keep the largest connected chunk of pixels
+    # num_labels, labels, stats, centroids = cv.connectedComponentsWithStats(mask, connectivity=4)
+    #
+    # # Find the largest connected chunk of pixels
+    # largest_label = 1 + np.argmax(stats[1:, cv.CC_STAT_AREA])
+    #
+    # # Remove all other connected chunks of pixels
+    # mask[labels != largest_label] = 0
     return mask
 
 def get_foreground_mask_HSV_interactively(image):

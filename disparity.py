@@ -113,7 +113,7 @@ def compute_disparity_map(images, suffix, mask=None, save_path='output', display
     _disparity_map = display_disparity_map(disparity)
 
     # Save the disparity map
-    cv.imwrite(f'{save_path}disparity_map{suffix}.png', _disparity_map)
+    cv.imwrite(f'{save_path}{suffix}_disparity_map.png', _disparity_map)
 
     # Display the disparity map
     if display:
