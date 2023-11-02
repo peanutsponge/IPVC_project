@@ -1,25 +1,32 @@
+"""
+This file contains the functions to compute the disparity map from two rectified images.
+"""
+
 import cv2 as cv
 import numpy as np
 
 
 def display_disparity_map(disparity_map):
     """
-    Display the disparity map in a range and colorize it.
+    Display the disparity map.
     Args:
         disparity_map: The disparity map to display
 
     Returns:
-        _disparity_map: The disparity map with color overlay
+        _disparity_map: The disparity map with black overlay
     """
     _disparity_map = disparity_map.copy()
+
     # Color mark everything that is not in the range we want to display
     mask_lower = np.zeros(_disparity_map.shape, dtype=np.uint8)
     mask_lower[_disparity_map < 1] = 255
     _disparity_map[_disparity_map < 1] = 1
+
     # Normalize the disparity_map map to the range we want to display
     _disparity_map = cv.normalize(_disparity_map, _disparity_map, alpha=0, beta=255, norm_type=cv.NORM_MINMAX,
                                   dtype=cv.CV_8U)
-    # Apply the masks as a color overlay
+
+    # Apply the masks as a black overlay
     _disparity_map = cv.applyColorMap(_disparity_map, cv.COLORMAP_JET)
     _disparity_map[mask_lower == 255] = [0, 0, 0]
     return _disparity_map
@@ -30,17 +37,17 @@ def compute_disparity(images, mask, num_disp, block_size, uniquenessRatio, speck
     """
     Compute the disparity map from two rectified images.
     Args:
-        images:
-        mask:
-        num_disp:
-        block_size:
-        uniquenessRatio:
-        speckleWindowSize:
-        speckleRange:
-        disp12MaxDiff:
-        mode:
-        labda:
-        sigma:
+        images: The two rectified images to compute the disparity map from needs to be in uint8 format
+        mask: The mask to apply to the disparity map
+        num_disp: The number of disparities
+        block_size: The block size
+        uniquenessRatio: The uniqueness ratio
+        speckleWindowSize: The speckle window size
+        speckleRange: The speckle range
+        disp12MaxDiff: The disp12MaxDiff parameter
+        mode: The mode parameter for the stereo matcher, either cv.STEREO_SGBM_MODE_SGBM or cv.STEREO_SGBM_MODE_HH
+        labda: The lambda parameter for the wls filter
+        sigma: The sigma parameter for the wls filter
         use_mask:
 
     Returns:
@@ -48,6 +55,7 @@ def compute_disparity(images, mask, num_disp, block_size, uniquenessRatio, speck
     """
     im1 = images[0].copy()
     im2 = images[1].copy()
+
     # # Convert the images to grayscale
     im1 = cv.cvtColor(im1, cv.COLOR_BGR2GRAY)
     im2 = cv.cvtColor(im2, cv.COLOR_BGR2GRAY)
@@ -123,7 +131,6 @@ def compute_disparity_map(images, suffix, mask=None, save_path='output', display
     if display:
         cv.imshow("Disparity", _disparity_map)
         cv.waitKey(0)
-
     return disparity
 
 

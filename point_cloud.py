@@ -7,6 +7,14 @@ import open3d as o3d
 
 
 def visualize_point_cloud(pcd):
+    """
+    Visualizes a point cloud
+    Args:
+        pcd:
+
+    Returns:
+
+    """
     # Create a visualizer object
     vis = o3d.visualization.Visualizer()
     vis.create_window()

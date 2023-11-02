@@ -9,14 +9,15 @@ from point_cloud_alignment import combine_point_clouds
 from mesh import create_mesh_poisson, visualize_mesh
 from disparity import compute_disparity_map, compute_disparity_map_interactively
 import open3d as o3d
+
 # Only execute to generate the calibration data file
 # calibrate_3_cameras_to_file('calibration_data.pkl')
 
 # Load the calibration data, see camera_calibration.py for more info on the specific saved dictionary entries
 calibration_data = get_calibration_data_from_file('calibration_data.pkl')
 
-subjects = [2]
-numbers = [0, 1, 2, 3]
+subjects = [2]  # Specify the subjects to run the pipeline on
+numbers = [0, 1, 2, 3]  # Specify the numbers to run the pipeline on
 for s in subjects:
     for n in numbers:
         save_path = f'output/subject{s}/number{n}'
@@ -52,8 +53,6 @@ for s in subjects:
         # Merge the point clouds using the ICP algorithm (iterated closest points)
         pc_combined = combine_point_clouds(pc_MR, pc_LM, display=False)
         print('Finished combining point clouds')
-
-
 
         # Save the point cloud
         o3d.io.write_point_cloud(f'{save_path}_pc_combined.ply', pc_combined)

@@ -1,6 +1,11 @@
+"""
+This script is used to evaluate the mesh.
+"""
+
 import open3d as o3d
-subjects = [1, 2, 4]
-numbers = [0, 1, 2, 3]
+
+subjects = [2]
+numbers = [0]
 for s in subjects:
     for n in numbers:
         mesh = o3d.io.read_triangle_mesh(f'output/mesh_subject_{s}_number_{n}.stl')

@@ -1,3 +1,7 @@
+"""
+This file contains functions for aligning and merging point clouds.
+"""
+
 import open3d as o3d
 import numpy as np
 from point_cloud import visualize_point_cloud
@@ -22,12 +26,13 @@ def merge_point_clouds(pcd1, pcd2, n_x=100, n_y=1000):
     """
     Merges two point clouds by taking the average z value of each grid cell and then taking the point cloud with the
     Args:
-        pcd1:
-        pcd2:
-        n:
+        n_y: Resolution in y direction
+        n_x: Resolution in x direction
+        pcd1: The first point cloud
+        pcd2: The second point cloud
 
     Returns:
-
+        merged_pcd: The merged point cloud
     """
     # Create a grid with size w x h
     x_min = min(pcd1.get_min_bound()[0], pcd2.get_min_bound()[0])
@@ -47,7 +52,6 @@ def merge_point_clouds(pcd1, pcd2, n_x=100, n_y=1000):
     # Keep everthing right of the nose as pcd2
     pcdright = pcd1.crop(
         o3d.geometry.AxisAlignedBoundingBox(min_bound=[x_right, -np.inf, -np.inf], max_bound=[np.inf, np.inf, np.inf]))
-
 
     # In the region between x_left and x_right, take the average z value of each grid cell
     x_mid = np.linspace(x_left, x_right, num=n_x)
@@ -70,14 +74,14 @@ def merge_point_clouds(pcd1, pcd2, n_x=100, n_y=1000):
 
             # get average z value
             z = (np.mean(np.asarray(pcd1_frame.points)[:, 2]) * i + np.mean(np.asarray(pcd2_frame.points)[:, 2]) * (
-                        n_x - i)) / n_x
+                    n_x - i)) / n_x
             x = (np.mean(np.asarray(pcd1_frame.points)[:, 0]) * i + np.mean(np.asarray(pcd2_frame.points)[:, 0]) * (
-                        n_x - i)) / n_x
+                    n_x - i)) / n_x
             y = (np.mean(np.asarray(pcd1_frame.points)[:, 1]) * i + np.mean(np.asarray(pcd2_frame.points)[:, 1]) * (
-                        n_x - i)) / n_x
+                    n_x - i)) / n_x
             # get average color
             c = (np.mean(np.asarray(pcd1_frame.colors), axis=0) * i + np.mean(np.asarray(pcd2_frame.colors), axis=0) * (
-                        n_x - i)) / n_x
+                    n_x - i)) / n_x
 
             # create point
             p = np.array([x, y, z])
@@ -90,6 +94,7 @@ def merge_point_clouds(pcd1, pcd2, n_x=100, n_y=1000):
             merged_pcd += pcdframe
     merged_pcd += (pcdleft + pcdright)
     return merged_pcd
+
 
 # def merge_point_clouds(pcd1, pcd2, n_x=100, n_y=1000):
 #     """
@@ -171,6 +176,16 @@ def merge_point_clouds(pcd1, pcd2, n_x=100, n_y=1000):
 #     return merged_pcd
 
 def remove_side(pcd, side, factor):
+    """
+    Removes a side of a point cloud
+    Args:
+        pcd: the point cloud
+        side: left or right
+        factor: how much of the side to remove
+
+    Returns:
+        pcd: the point cloud with the side removed
+    """
     # factor betwen 0-1
     x_min = pcd.get_min_bound()[0]
     x_max = pcd.get_max_bound()[0]
@@ -189,6 +204,15 @@ def remove_side(pcd, side, factor):
 
 
 def get_nose_x(pcd, zfactor=0.05):
+    """
+    Gets the x position of the nose in a point cloud.
+    Args:
+        pcd: the point cloud
+        zfactor: How much of the z range to use to determine the nose
+
+    Returns:
+
+    """
     # find position of nose
     z_max = pcd.get_max_bound()[2]
     z_min = pcd.get_min_bound()[2]
@@ -205,8 +229,9 @@ def get_nose_slice(pcd, xfactor, zfactor=0.05):
     """
     Gets the nose slice of a point cloud. Which is the entire vertical slice that includes the nose.
     Args:
+        xfactor: The factor of the width of the point cloud that is used to determine the nose slice.
         pcd: The point cloud.
-        factor: The factor of the width of the point cloud that is used to determine the nose slice.
+        zfactor: The factor of the width of the point cloud that is used to determine the nose slice.
 
     Returns:
         pcd_slice: The slice of the point cloud that includes the nose.
@@ -226,24 +251,23 @@ def get_nose_slice(pcd, xfactor, zfactor=0.05):
 
 
 def combine_point_clouds(source_pcd_, target_pcd_, display=False):
-    # TODO: first remove outliers, then downsample?
-    # source_pcd_ = source_pcd_.voxel_down_sample(voxel_size=5)
-    # target_pcd_ = target_pcd_.voxel_down_sample(voxel_size=5)
+    """
+    Combines two point clouds by aligning them and then merging them.
+    Args:
+        source_pcd_: The first point cloud
+        target_pcd_: The second point cloud
+        display: Whether to display the point clouds while aligning and merging them
 
+    Returns:
+        merged_pcd: The merged point cloud
+    """
     # remove outliers
     source_pcd = remove_outliers(source_pcd_)
     target_pcd = remove_outliers(target_pcd_)
 
-    # source_pcd = remove_side(source_pcd, 'left', 0.3)
-    # target_pcd = remove_side(target_pcd, 'right', 0.3)
-
     # copy point clouds, such that the originals are not changed
     src_pcd = get_nose_slice(source_pcd, 0.2)
     tgt_pcd = get_nose_slice(target_pcd, 0.2)
-
-    # # Compute normals for the target point cloud
-    # target_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
-    # source_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
 
     # Visualize the aligned point clouds
     if display:

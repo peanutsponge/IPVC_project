@@ -1,3 +1,7 @@
+"""
+This file contains functions for creating and visualizing meshes
+"""
+
 import open3d as o3d
 import numpy as np
 
