@@ -2,7 +2,7 @@
 Main file that runs the entire pipeline
 """
 from get_images import getTriplet
-from point_cloud import generate_point_cloud
+from point_cloud import generate_point_cloud, visualize_point_cloud
 from pre_process import preprocess
 from camera_calibration import get_calibration_data_from_file, calibrate_3_cameras_to_file
 from point_cloud_alignment import combine_point_clouds
@@ -15,7 +15,7 @@ import open3d as o3d
 # Load the calibration data, see camera_calibration.py for more info on the specific saved dictionary entries
 calibration_data = get_calibration_data_from_file('calibration_data.pkl')
 
-subjects = [1]
+subjects = [2]
 numbers = [0, 1, 2, 3]
 for s in subjects:
     for n in numbers:
@@ -53,6 +53,8 @@ for s in subjects:
         pc_combined = combine_point_clouds(pc_MR, pc_LM, display=False)
         print('Finished combining point clouds')
 
+
+
         # Save the point cloud
         o3d.io.write_point_cloud(f'{save_path}_pc_combined.ply', pc_combined)
         print('Finished saving point cloud')
@@ -61,7 +63,7 @@ for s in subjects:
         pc_combined = o3d.io.read_point_cloud(f'{save_path}_pc_combined.ply')
 
         #  Create mesh from the point cloud
-        mesh = create_mesh_poisson(pc_combined, 8, 0.2)
+        mesh = create_mesh_poisson(pc_combined, 7, 0.3)
         print('Finished creating mesh')
 
         # Save mesh to file
