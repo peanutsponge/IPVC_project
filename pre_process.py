@@ -4,7 +4,7 @@ This file contains the function that performs global color normalization on an i
 import numpy as np
 import cv2 as cv
 from camera_calibration import rectify_images
-from remove_background import get_foreground_mask_HSV
+from remove_background import get_foreground_mask_HSV, get_foreground_mask_HSV_interactively
 
 
 def normalize_global_color_type(image, T=np.float32):
@@ -42,20 +42,25 @@ def preprocess(images, calibration_data=None, suffix=None, save_path='output', d
     """
     # Stereo rectification to facilitate the dense stereo matching, also performs non-linear distortion correction!
     images = rectify_images(images[0], images[1], calibration_data[f'map1x{suffix}'],
-                                 calibration_data[f'map1y{suffix}'],
-                                 calibration_data[f'map2x{suffix}'], calibration_data[f'map2y{suffix}'],
-                                 calibration_data[f'ROI1{suffix}'], calibration_data[f'ROI2{suffix}'], suffix)
+                            calibration_data[f'map1y{suffix}'],
+                            calibration_data[f'map2x{suffix}'], calibration_data[f'map2y{suffix}'],
+                            calibration_data[f'ROI1{suffix}'], calibration_data[f'ROI2{suffix}'], suffix)
     mask = np.ones_like(images)[:, :, :, 0] * 255
     for i in [0, 1]:
-        mask[i] = get_foreground_mask_HSV(images[i])
+        # mask[i] = get_foreground_mask_HSV(images[i])
         # global colour normalization to make sure that the so-called ‘Constant Brightness Assumption’ holds true.
         images[i] = normalize_global_color_type(images[i])
 
+        #get_foreground_mask_HSV_interactively(images[i])
+
         # Make Foreground mask
-        # mask[i] = get_foreground_mask_HSV(images[i], cleaning_amount=0,
-        #                                   v_min=0, v_max=255,  # 60
-        #                                   s_min=0, s_max=255,
-        #                                   h_min=0, h_max=255)#170
+        mask[i] = get_foreground_mask_HSV(images[i],
+                                          cleaning_amount=0, closing_amount=5, fill_holes=True,
+                                          v_min=50, v_max=255,  # 60
+                                          s_min=0, s_max=50,
+                                          h_min=100, h_max=255,
+                                          hue_shift=200)  # 170
+
 
     # Apply the mask to the images as a translucent red overlay
     im1 = images[0].copy()
