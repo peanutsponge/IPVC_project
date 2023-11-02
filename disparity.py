@@ -79,7 +79,8 @@ def compute_disparity(images, mask, num_disp, block_size, uniquenessRatio, speck
     disparity = wls_filter.filter(disparity_map_left=left_disp, left_view=im1, disparity_map_right=right_disp)
 
     # Apply first mask to disparity map
-    disparity[mask[0] != 255] = 0
+    if use_mask:
+        disparity[mask[0] != 255] = 0
     # important conversion for the reprojectImageTo3D function
     disparity = np.float32(np.divide(disparity, 16.0))
     return disparity
