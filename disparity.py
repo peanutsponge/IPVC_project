@@ -48,10 +48,9 @@ def compute_disparity(images, mask, num_disp, block_size, uniquenessRatio, speck
     """
     im1 = images[0].copy()
     im2 = images[1].copy()
-    if use_mask:
-        im1[mask[0] != 255] = [0, 0, 0]
-        im2[mask[1] != 255] = [0, 0, 0]
-
+    # # Convert the images to grayscale
+    im1 = cv.cvtColor(im1, cv.COLOR_BGR2GRAY)
+    im2 = cv.cvtColor(im2, cv.COLOR_BGR2GRAY)
     # Create the stereo matcher objects with the parameters we set above
     left_matcher = cv.StereoSGBM_create(
         numDisparities=num_disp,
@@ -108,7 +107,6 @@ def compute_disparity_map(images, suffix, mask=None, save_path='output', display
                                   mode=cv.STEREO_SGBM_MODE_HH,
                                   labda=8000,
                                   sigma=1.5)
-
 
     # Create display disparity map
     _disparity_map = display_disparity_map(disparity)

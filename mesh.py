@@ -2,7 +2,7 @@ import open3d as o3d
 import numpy as np
 
 
-def create_mesh_poisson(point_cloud,  depth=8, density_threshold=0.02):
+def create_mesh_poisson(point_cloud, depth=8, density_threshold=0.02):
     """
     Create a mesh from a point cloud using the poisson algorithm
     Args:
@@ -25,7 +25,8 @@ def create_mesh_poisson(point_cloud,  depth=8, density_threshold=0.02):
     mesh.remove_vertices_by_mask(vertices_to_remove)
     return mesh
 
-def visualize_mesh(mesh, pointcloud = None):
+
+def visualize_mesh(mesh, pointcloud=None):
     """
     Visualize a mesh
     Args:
@@ -41,6 +42,7 @@ def visualize_mesh(mesh, pointcloud = None):
     else:
         o3d.visualization.draw_geometries([pointcloud, mesh])
 
+
 def save_mesh(mesh, name):
     """
     Save a mesh to a file
@@ -52,4 +54,4 @@ def save_mesh(mesh, name):
 
     """
     # Save the mesh to a stl file
-    o3d.io.write_triangle_mesh("output/mesh_"+name+".stl", mesh)
+    o3d.io.write_triangle_mesh("output/mesh_" + name + ".stl", mesh)
