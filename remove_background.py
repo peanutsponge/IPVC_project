@@ -42,7 +42,10 @@ def get_foreground_mask_HSV(image, closing_amount = 3, cleaning_amount=9, v_min=
     Returns:
     numpy.ndarray: A binary mask of the foreground of the input image.
     """
-    im_hsv = cv.cvtColor(image, cv.COLOR_BGR2HSV)
+    im_hsv = image.copy()
+    im_hsv = cv.cvtColor(im_hsv, cv.COLOR_BGR2HSV)
+    # do histogram equalization on the value channel
+    im_hsv[:, :, 2] = cv.equalizeHist(im_hsv[:, :, 2])
     # Shift the hue channel
     im_hsv[:, :, 0] = (im_hsv[:, :, 0] + hue_shift) % 256
     # Filter on saturation, value and hue
@@ -105,6 +108,10 @@ def get_foreground_mask_HSV_interactively(image):
         fill_holes = cv.getTrackbarPos('Fill holes', 'Window')
 
         im_hsv = cv.cvtColor(image, cv.COLOR_BGR2HSV)
+
+        # do histogram equalization on the value channel
+        image[:, :, 2] = cv.equalizeHist(image[:, :, 2])
+
         # Shift the hue channel
         im_hsv[:, :, 0] = (im_hsv[:, :, 0] + hue_shift) % 256
         # show HSV channels seperately

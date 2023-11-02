@@ -24,14 +24,6 @@ def normalize_global_color_type(image, T=np.float32):
     # convert to 0-255, CV_8U
     image = cv.normalize(image, image, alpha=0, beta=255, norm_type=cv.NORM_MINMAX,
                                     dtype=cv.CV_8U)
-    # convert to hsv
-    image = cv.cvtColor(image, cv.COLOR_BGR2HSV)
-    # do histogram equalization on the value channel
-    image[:, :, 2] = cv.equalizeHist(image[:, :, 2])
-    # convert back to bgr
-    image = cv.cvtColor(image, cv.COLOR_HSV2BGR)
-
-
     return image
 
 
@@ -59,7 +51,7 @@ def preprocess(images, calibration_data=None, suffix=None, save_path='output', d
         # global colour normalization to make sure that the so-called ‘Constant Brightness Assumption’ holds true.
         images[i] = normalize_global_color_type(images[i])
 
-        # get_foreground_mask_HSV_interactively(images[i])
+        #get_foreground_mask_HSV_interactively(images[i])
         # Make Foreground mask
         mask[i] = get_foreground_mask_HSV(images[i],
                                           cleaning_amount=50, closing_amount=5, fill_holes=True,

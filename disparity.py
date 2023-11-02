@@ -51,6 +51,11 @@ def compute_disparity(images, mask, num_disp, block_size, uniquenessRatio, speck
     # # Convert the images to grayscale
     im1 = cv.cvtColor(im1, cv.COLOR_BGR2GRAY)
     im2 = cv.cvtColor(im2, cv.COLOR_BGR2GRAY)
+
+    # Histogram equalization
+    im1 = cv.equalizeHist(im1)
+    im2 = cv.equalizeHist(im2)
+
     # Create the stereo matcher objects with the parameters we set above
     left_matcher = cv.StereoSGBM_create(
         numDisparities=num_disp,

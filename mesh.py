@@ -41,17 +41,3 @@ def visualize_mesh(mesh, pointcloud=None):
         o3d.visualization.draw_geometries([mesh])
     else:
         o3d.visualization.draw_geometries([pointcloud, mesh])
-
-
-def save_mesh(mesh, name):
-    """
-    Save a mesh to a file
-    Args:
-        mesh:
-        name:
-
-    Returns:
-
-    """
-    # Save the mesh to a stl file
-    o3d.io.write_triangle_mesh("output/mesh_" + name + ".stl", mesh)
