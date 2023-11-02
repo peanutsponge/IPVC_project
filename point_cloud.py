@@ -47,7 +47,7 @@ def generate_point_cloud(disparity_map, rectified_images, calibration_data, suff
 
     Q = np.float32([[1, 0, 0, 0],
                    [0, -1, 0, 0],
-                   [0, 0, focal_length * 0.00625, 0],
+                   [0, 0, focal_length * 0.00325, 0],
                    [0, 0, 0, 1]])
 
 

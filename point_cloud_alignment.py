@@ -82,7 +82,35 @@ def remove_side(pcd, side, factor):
                                                            max_bound=[x_max, np.inf, np.inf]))
     return pcd
 
+def get_nose_slice(pcd, factor):
+    """
+    Gets the nose slice of a point cloud. Which is the entire vertical slice that includes the nose.
+    Args:
+        pcd: The point cloud.
+        factor: The factor of the width of the point cloud that is used to determine the nose slice.
 
+    Returns:
+        pcd_slice: The slice of the point cloud that includes the nose.
+    """
+    # find position of nose
+    z_max = pcd.get_max_bound()[2]
+    z_min = pcd.get_min_bound()[2]
+    z_range = z_max - z_min
+    # First get only a point cloud with a z value close to the maximum
+    pcd_z_max = pcd.crop(o3d.geometry.AxisAlignedBoundingBox(min_bound=[-np.inf, -np.inf, z_max - 0.1*z_range],
+                                                              max_bound=[np.inf, np.inf, np.inf]))
+    # Locate the x middle of the nose
+    x_nose = (pcd_z_max.get_max_bound()[0] + pcd_z_max.get_min_bound()[0])/2
+    # Get the width of the point cloud
+    x_max = pcd.get_max_bound()[0]
+    x_min = pcd.get_min_bound()[0]
+    x_range = x_max - x_min
+    # Get the width of the nose slice
+    x_nose_slice = factor * x_range
+    # Get the nose slice
+    pcd_slice = pcd.crop(o3d.geometry.AxisAlignedBoundingBox(min_bound=[x_nose - x_nose_slice/2, -np.inf, -np.inf],
+                                                              max_bound=[x_nose + x_nose_slice/2, np.inf, np.inf]))
+    return pcd_slice
 def combine_point_clouds(source_pcd_, target_pcd_, display=False):
     # TODO: first remove outliers, then downsample?
     # source_pcd_ = source_pcd_.voxel_down_sample(voxel_size=5)
@@ -92,12 +120,22 @@ def combine_point_clouds(source_pcd_, target_pcd_, display=False):
     source_pcd = remove_outliers(source_pcd_)
     target_pcd = remove_outliers(target_pcd_)
 
-    #source_pcd = remove_side(source_pcd, 'left', 0.2)
-    #target_pcd = remove_side(target_pcd, 'right', 0.2)
+    # source_pcd = remove_side(source_pcd, 'left', 0.3)
+    # target_pcd = remove_side(target_pcd, 'right', 0.3)
 
-    # Compute normals for the target point cloud
-    target_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
-    source_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+    # copy point clouds, such that the originals are not changed
+    src_pcd = get_nose_slice(source_pcd, 0.2)
+    tgt_pcd = get_nose_slice(target_pcd, 0.2)
+
+
+
+    # # Compute normals for the target point cloud
+    # target_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+    # source_pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+
+    # Visualize the aligned point clouds
+    if display:
+        visualize_point_cloud(src_pcd + tgt_pcd)
 
     # Set the threshold and initial transformation
     threshold = 100  # this is the maximum distance between two correspondences in source and target
@@ -109,8 +147,8 @@ def combine_point_clouds(source_pcd_, target_pcd_, display=False):
 
     # Apply ICP registration to align the source point cloud with the target point cloud
     icp_transformation = o3d.pipelines.registration.registration_icp(
-        source_pcd,
-        target_pcd,
+        src_pcd,
+        tgt_pcd,
         threshold,
         trans_init,
         o3d.pipelines.registration.TransformationEstimationPointToPoint(),
@@ -121,7 +159,7 @@ def combine_point_clouds(source_pcd_, target_pcd_, display=False):
         )
     )
 
-    evaluation = o3d.pipelines.registration.evaluate_registration(source_pcd, target_pcd, threshold,
+    evaluation = o3d.pipelines.registration.evaluate_registration(src_pcd, tgt_pcd, threshold,
                                                                   icp_transformation.transformation)
     print('Mesh evaluation: ', evaluation)
 

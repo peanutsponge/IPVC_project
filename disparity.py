@@ -103,15 +103,15 @@ def compute_disparity_map(images, suffix, mask=None, save_path='output', display
         disparity: The disparity map
     """
     disparity = compute_disparity(images, mask,
-                                  block_size=5,
-                                  num_disp=64,  # Needs to be divisible by 16
-                                  disp12MaxDiff=50,
+                                  block_size=10,
+                                  num_disp=80,  # Needs to be divisible by 16
+                                  disp12MaxDiff=100,
                                   uniquenessRatio=5,
                                   speckleWindowSize=9,
                                   speckleRange=2,
                                   mode=cv.STEREO_SGBM_MODE_HH,
-                                  labda=8000,
-                                  sigma=1.5)
+                                  labda=600,
+                                  sigma=2.5)
 
     # Create display disparity map
     _disparity_map = display_disparity_map(disparity)

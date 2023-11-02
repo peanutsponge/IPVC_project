@@ -31,8 +31,8 @@ for s in subjects:
         # Compute the disparity map, note that the first image passed is what the disparity map is based on
         disparity_map_LM = compute_disparity_map(images_LM, "_lm", mask_LM, save_path, display=False)
         disparity_map_MR = compute_disparity_map(images_MR, "_mr", mask_MR, save_path, display=False)
-        compute_disparity_map_interactively(images_LM, mask_LM)
-        compute_disparity_map_interactively(images_MR, mask_MR)
+        # compute_disparity_map_interactively(images_LM, mask_LM)
+        # compute_disparity_map_interactively(images_MR, mask_MR)
         print('Finished computing disparity maps')
 
         # # Generate two point clouds
@@ -44,29 +44,29 @@ for s in subjects:
         o3d.io.write_point_cloud(f'{save_path}_pc_LM.ply', pc_LM)
         o3d.io.write_point_cloud(f'{save_path}_pc_MR.ply', pc_MR)
         print('Finished saving point clouds')
-        #
-        # # Load the point clouds
-        # pc_LM = o3d.io.read_point_cloud(f'{save_path}_pc_LM.ply')
-        # pc_MR = o3d.io.read_point_cloud(f'{save_path}_pc_MR.ply')
-        #
-        # # Merge the point clouds using the ICP algorithm (iterated closest points)
-        # pc_combined = combine_point_clouds(pc_MR, pc_LM, display=False)
-        # print('Finished combining point clouds')
-        #
-        # # Save the point cloud
-        # o3d.io.write_point_cloud(f'{save_path}_pc_combined.ply', pc_combined)
-        # print('Finished saving point cloud')
-        #
-        # # Load the point cloud
-        # pc_combined = o3d.io.read_point_cloud(f'{save_path}_pc_combined.ply')
-        #
-        # #  Create mesh from the point cloud
-        # mesh = create_mesh_poisson(pc_combined, 8, 0.2)
-        # print('Finished creating mesh')
-        #
-        # # Save mesh to file
-        # o3d.io.write_triangle_mesh(f'{save_path}_mesh.ply', mesh)
-        # print('Finished saving mesh')
+
+        # Load the point clouds
+        pc_LM = o3d.io.read_point_cloud(f'{save_path}_pc_LM.ply')
+        pc_MR = o3d.io.read_point_cloud(f'{save_path}_pc_MR.ply')
+
+        # Merge the point clouds using the ICP algorithm (iterated closest points)
+        pc_combined = combine_point_clouds(pc_MR, pc_LM, display=False)
+        print('Finished combining point clouds')
+
+        # Save the point cloud
+        o3d.io.write_point_cloud(f'{save_path}_pc_combined.ply', pc_combined)
+        print('Finished saving point cloud')
+
+        # Load the point cloud
+        pc_combined = o3d.io.read_point_cloud(f'{save_path}_pc_combined.ply')
+
+        #  Create mesh from the point cloud
+        mesh = create_mesh_poisson(pc_combined, 8, 0.2)
+        print('Finished creating mesh')
+
+        # Save mesh to file
+        o3d.io.write_triangle_mesh(f'{save_path}_mesh.ply', mesh)
+        print('Finished saving mesh')
 
         # Plot the mesh
         # visualize_mesh(mesh)
