@@ -35,6 +35,22 @@ def visualize_point_cloud(pcd):
     vis.run()
     vis.destroy_window()
 
+
+def remove_outliers(pcd):
+    """
+    Removes outliers from a point cloud
+    Args:
+        pcd:
+
+    Returns:
+
+    """
+    # Statistical outlier removal
+    cl, ind = pcd.remove_statistical_outlier(nb_neighbors=35, std_ratio=1.0)
+    pcd_outlier_removed = pcd.select_by_index(ind)
+    return pcd_outlier_removed
+
+
 def generate_point_cloud(disparity_map, rectified_images, calibration_data, suffix, display=False):
     """
     Generates a point cloud from a disparity map and the rectified images
@@ -54,15 +70,14 @@ def generate_point_cloud(disparity_map, rectified_images, calibration_data, suff
         focal_length = (calibration_data['mtx_middle'][0][0] + calibration_data['mtx_middle'][1][1]) / 2
 
     Q = np.float32([[1, 0, 0, 0],
-                   [0, -1, 0, 0],
-                   [0, 0, focal_length * 0.00325, 0],
-                   [0, 0, 0, 1]])
-
+                    [0, -1, 0, 0],
+                    [0, 0, focal_length * 0.00325, 0],
+                    [0, 0, 0, 1]])
 
     # Use the disparity map to find the point cloud
     point_cloud = cv.reprojectImageTo3D(disparity_map, Q, handleMissingValues=True)
     colors = cv.cvtColor(rectified_images[0], cv.COLOR_BGR2RGB)
-    mask_map = disparity_map > disparity_map.min() # possibly the same as disparity_map_invalid
+    mask_map = disparity_map > disparity_map.min()  # possibly the same as disparity_map_invalid
 
     point_cloud = point_cloud[mask_map]
     colors = colors[mask_map]
@@ -77,12 +92,11 @@ def generate_point_cloud(disparity_map, rectified_images, calibration_data, suff
     point_cloud = point_cloud[background_points]
     colors = colors[background_points]
 
-
     # Store the point cloud and colors in a pointcloud object
     pc_obj = o3d.geometry.PointCloud()
     pc_obj.points = o3d.utility.Vector3dVector(point_cloud)
-    pc_obj.colors = o3d.utility.Vector3dVector(colors/255)
-
+    pc_obj.colors = o3d.utility.Vector3dVector(colors / 255)
+    pc_obj = remove_outliers(pc_obj)
     # Visualize the point cloud
     if display:
         visualize_point_cloud(pc_obj)

@@ -7,21 +7,6 @@ import numpy as np
 from point_cloud import visualize_point_cloud
 
 
-def remove_outliers(pcd):
-    """
-    Removes outliers from a point cloud
-    Args:
-        pcd:
-
-    Returns:
-
-    """
-    # Statistical outlier removal
-    cl, ind = pcd.remove_statistical_outlier(nb_neighbors=35, std_ratio=1.0)
-    pcd_outlier_removed = pcd.select_by_index(ind)
-    return pcd_outlier_removed
-
-
 def merge_point_clouds(pcd1, pcd2, n_x=100, n_y=1000):
     """
     Merges two point clouds by taking the average z value of each grid cell and then taking the point cloud with the
@@ -95,85 +80,6 @@ def merge_point_clouds(pcd1, pcd2, n_x=100, n_y=1000):
     merged_pcd += (pcdleft + pcdright)
     return merged_pcd
 
-
-# def merge_point_clouds(pcd1, pcd2, n_x=100, n_y=1000):
-#     """
-#     Merges two point clouds by taking the average z value of each grid cell and then taking the point cloud with the
-#     Args:
-#         pcd1:
-#         pcd2:
-#         n:
-#
-#     Returns:
-#
-#     """
-#     # Create a grid with size w x h
-#     x_min = min(pcd1.get_min_bound()[0], pcd2.get_min_bound()[0])
-#     x_max = max(pcd1.get_max_bound()[0], pcd2.get_max_bound()[0])
-#     y_min = min(pcd1.get_min_bound()[1], pcd2.get_min_bound()[1])
-#     y_max = max(pcd1.get_max_bound()[1], pcd2.get_max_bound()[1])
-#
-#     x_factor = 0.1
-#     x_range = x_max - x_min
-#     x_nose = get_nose_x(pcd1)
-#     x_left = x_nose - x_factor * x_range
-#     x_right = x_nose + x_factor * x_range
-#
-#     # Keep everthing left of the nose as pcd1
-#     pcdleft = pcd2.crop(
-#         o3d.geometry.AxisAlignedBoundingBox(min_bound=[-np.inf, -np.inf, -np.inf], max_bound=[x_left, np.inf, np.inf]))
-#     # Keep everthing right of the nose as pcd2
-#     pcdright = pcd1.crop(
-#         o3d.geometry.AxisAlignedBoundingBox(min_bound=[x_right, -np.inf, -np.inf], max_bound=[np.inf, np.inf, np.inf]))
-#
-#     # In the region between x_left and x_right, take the average z value of each grid cell
-#     x_mid = np.linspace(x_left, x_right, num=n_x)
-#     y_mid = np.linspace(y_min, y_max, num=n_y)
-#
-#     merged_pcd = o3d.geometry.PointCloud()
-#
-#     # Use matrix operations to calculate the average z value of each grid cell
-#     z_values = np.zeros((n_x, n_y))
-#     weights = np.zeros((n_x, n_y))
-#     for pcd in [pcd1, pcd2]:
-#         pcd_z = np.asarray(pcd.points)[:, 2]
-#         pcd_weights = np.ones(len(pcd_z))
-#         for i in range(n_x - 1):
-#             for j in range(n_y - 1):
-#                 x_left, y_left = x_mid[i], y_mid[j]
-#                 x_right, y_right = x_mid[i + 1], y_mid[j + 1]
-#                 # Get points in range
-#                 pcd_frame = pcd.crop(o3d.geometry.AxisAlignedBoundingBox(min_bound=[x_left, y_left, -np.inf],
-#                                                                         max_bound=[x_right, y_right, np.inf]))
-#                 if len(pcd_frame.points) == 0:
-#                     continue
-#
-#                 # Get average z value
-#                 z_value = np.mean(pcd_frame.points[:, 2])
-#                 # Get weights
-#                 weight = len(pcd_frame.points)
-#                 # Add to z_values and weights matrices
-#                 z_values[i, j] += z_value * weight
-#                 weights[i, j] += weight
-#
-#     # Calculate the average z value of each grid cell
-#     z_values /= weights
-#
-#     # Create a point cloud from the average z values
-#     for i in range(n_x):
-#         for j in range(n_y):
-#             x = x_mid[i]
-#             y = y_mid[j]
-#             z = z_values[i, j]
-#             # Create a point
-#             p = np.array([x, y, z])
-#             p = p.reshape((1, 3))
-#             pcd_frame = o3d.geometry.PointCloud()
-#             pcd_frame.points = o3d.utility.Vector3dVector(p)
-#             # Add to merged point cloud
-#             merged_pcd += pcd_frame
-#     merged_pcd += (pcdleft + pcdright)
-#     return merged_pcd
 
 def remove_side(pcd, side, factor):
     """
@@ -250,7 +156,7 @@ def get_nose_slice(pcd, xfactor, zfactor=0.05):
     return pcd_slice
 
 
-def combine_point_clouds(source_pcd_, target_pcd_, display=False):
+def combine_point_clouds(source_pcd, target_pcd, display=False):
     """
     Combines two point clouds by aligning them and then merging them.
     Args:
@@ -261,10 +167,6 @@ def combine_point_clouds(source_pcd_, target_pcd_, display=False):
     Returns:
         merged_pcd: The merged point cloud
     """
-    # remove outliers
-    source_pcd = remove_outliers(source_pcd_)
-    target_pcd = remove_outliers(target_pcd_)
-
     # copy point clouds, such that the originals are not changed
     src_pcd = get_nose_slice(source_pcd, 0.2)
     tgt_pcd = get_nose_slice(target_pcd, 0.2)
@@ -313,5 +215,4 @@ def combine_point_clouds(source_pcd_, target_pcd_, display=False):
 
     if display:
         visualize_point_cloud(merged_pcd)
-
     return merged_pcd
