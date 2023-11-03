@@ -27,6 +27,14 @@ def create_mesh_poisson(point_cloud, depth=8, density_threshold=0.02):
     print('Remove mesh outliers (low density)')
     vertices_to_remove = densities < np.quantile(densities, density_threshold)
     mesh.remove_vertices_by_mask(vertices_to_remove)
+    # Only keep the largest connected component
+    print('Remove mesh outliers (small components)')
+    triangle_clusters, cluster_n_triangles, cluster_area = (mesh.cluster_connected_triangles())
+    triangle_clusters = np.asarray(triangle_clusters)
+    cluster_n_triangles = np.asarray(cluster_n_triangles)
+    largest_cluster_idx = cluster_n_triangles.argmax()
+    triangles_to_remove = triangle_clusters != largest_cluster_idx
+    mesh.remove_triangles_by_mask(triangles_to_remove)
     return mesh
 
 
