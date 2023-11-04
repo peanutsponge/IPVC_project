@@ -2,4 +2,3 @@
 .idea/
 __pycache__/
 /point_cloud.ply
-output/
