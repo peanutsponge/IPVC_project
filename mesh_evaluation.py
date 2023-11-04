@@ -102,12 +102,19 @@ for s in subjects:
         # compute the average z distance excluding the points with infinite z distance
         zz__ = zz.flatten()
         zz__ = zz__[zz__ != np.inf]
+
+        print(f'Subject {s} number {n} Average z distance: {round(np.mean(zz__), 2)}')
         # plot the z distance as a heatmap
         # invert y axis
         zz_ = np.flipud(zz)
         plt.imshow(zz_)
         plt.colorbar()
-        plt.title(f'Z distance between the two meshes for subject {s} number {n}\nAverage z distance: {round(np.mean(zz__), 2)}')
+        # Let the xaxis tick go from 50 to 100
+        plt.xticks(np.linspace(0, 100, 6), np.linspace(50, 100, 6))
+
+        # plt.title(f'Z distance between the two meshes for subject {s} number {n}\nAverage z distance: {round(np.mean(zz__), 2)}')
+        plt.xlabel("x (% of mesh width)")
+        plt.ylabel("y (% of mesh height)")
 
         plt.savefig(f'output/subject{s}/number{n}_z_distance.png')
         plt.show()
